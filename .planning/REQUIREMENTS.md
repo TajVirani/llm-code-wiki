@@ -79,17 +79,54 @@
 
 ## Traceability
 
-Populated by roadmap creation.
+Populated by roadmap creation 2026-04-28. All 26 v1 requirements mapped to phases in `ROADMAP.md`.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (TBD) | (TBD) | Pending |
+| CAPT-01 | Phase 3 — Stop Hook Automation | Pending |
+| CAPT-02 | Phase 2 — In-Session Inbox Skill | Pending |
+| CAPT-03 | Phase 2 — In-Session Inbox Skill | Pending |
+| CAPT-04 | Phase 2 — In-Session Inbox Skill (validation gate spans Phases 1+2) | Pending |
+| CAPT-05 | Phase 2 — In-Session Inbox Skill | Pending |
+| CAPT-06 | Phase 2 — In-Session Inbox Skill | Pending |
+| CAPT-07 | Phase 2 — In-Session Inbox Skill | Pending |
+| DIGS-01 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-02 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-03 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-04 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-05 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-06 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-07 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-08 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-09 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-10 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-11 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-12 | Phase 1 — Foundation + Curator | Pending |
+| DIGS-13 | Phase 1 — Foundation + Curator | Pending |
+| LIFE-01 | Phase 2 — In-Session Inbox Skill | Pending |
+| LIFE-02 | Phase 1 — Foundation + Curator | Pending |
+| LIFE-03 | Phase 1 — Foundation + Curator | Pending |
+| INST-01 | Phase 4 — Install & Distribution | Pending |
+| INST-02 | Phase 4 — Install & Distribution | Pending |
+| INST-03 | Phase 4 — Install & Distribution | Pending |
 
 **Coverage:**
 - v1 requirements: 26 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 26 ⚠️
+- Mapped to phases: 26 ✓
+- Unmapped: 0
+- Validated: 0 (none yet — Phase 1 not started)
+
+**Phase distribution:**
+- Phase 1 — Foundation + Curator: 15 requirements (DIGS-01..13, LIFE-02, LIFE-03)
+- Phase 2 — In-Session Inbox Skill: 7 requirements (CAPT-02..07, LIFE-01)
+- Phase 3 — Stop Hook Automation: 1 requirement (CAPT-01)
+- Phase 4 — Install & Distribution: 3 requirements (INST-01..03)
+
+**Notes:**
+- **CAPT-04** is owned by Phase 2 (the inbox-update skill implements pruning) but its acceptance test — the locked "1+1-then-deleted" fixture run — exercises the whole capture+digest loop, so it cannot be marked validated until both Phase 1 (curator) and Phase 2 (skill) have landed. See ROADMAP.md Phase 2 success criterion 3.
+- **Phase 3 intentionally owns only one requirement (CAPT-01).** The hook is the riskiest component operationally; isolating it lets breakage be attributed cleanly. Per `research/SUMMARY.md` §"Why this order".
 
 ---
+
 *Requirements defined: 2026-04-28*
-*Last updated: 2026-04-28 after initialization*
+*Traceability populated: 2026-04-28 after roadmap creation*

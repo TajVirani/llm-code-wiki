@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:docs.claude.com)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs commit \"docs: research findings + synthesis\" .planning/research/STACK.md .planning/research/FEATURES.md .planning/research/ARCHITECTURE.md .planning/research/PITFALLS.md .planning/research/SUMMARY.md)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs commit \"docs: define v1 requirements\" .planning/REQUIREMENTS.md)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs generate-claude-md)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs commit \"docs: create roadmap \\(4 phases\\)\" .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md CLAUDE.md)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs commit \"docs\\(01\\): capture phase context\" .planning/phases/01-foundation-curator/01-CONTEXT.md .planning/phases/01-foundation-curator/01-DISCUSSION-LOG.md)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs state)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs commit \"docs\\(01\\): create phase plans \\(4 plans, 3 waves\\) with revision fixes\" .planning/phases/01-foundation-curator/01-01-PLAN.md .planning/phases/01-foundation-curator/01-02-PLAN.md .planning/phases/01-foundation-curator/01-03-PLAN.md .planning/phases/01-foundation-curator/01-04-PLAN.md .planning/ROADMAP.md)",
+      "Skill(gsd-execute-phase)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs state begin-phase --phase 1 --name \"Foundation + Curator\" --plans 4)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs config-get workflow.use_worktrees)",
+      "Bash(node /home/pcpmi/.claude/get-shit-done/bin/gsd-tools.cjs phase-plan-index 1)"
+    ]
+  }
+}

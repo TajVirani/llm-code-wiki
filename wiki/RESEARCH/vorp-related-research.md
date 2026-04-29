@@ -10,7 +10,7 @@
 
 Plant for D-07 alias-rewrite test. The link below uses the aliased-display form `[[Title|alias]]` and must remain aliased after the SPLIT in the upcoming digest run.
 
-The batch calculator referenced here is documented at [[VORP Batch Processing|the batch calculator]] — adjacent to the per-job concurrency model.
+The batch calculator referenced here is documented at [[VORP Batch Adaptive Workers|the batch calculator]] — adjacent to the per-job concurrency model.
 
 ## Related Notes
 

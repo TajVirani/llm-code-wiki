@@ -57,6 +57,7 @@ Code documentation stays current and coherent without manual upkeep — includin
 | Stop hook trigger (not PostToolUse) | One coherent inbox update per logical unit of work; Claude summarizes the turn rather than narrating every tool call | — Pending |
 | Rolling per-project inbox, manual digest | Features rarely end at session boundaries; explicit digest gives a review checkpoint | — Pending |
 | Multi-skill split (inbox upkeep + digest) | Different audiences (running Claude vs. fresh sub-agent), different triggers, different instructions | — Pending |
+| Stop hook injection mechanism = decision:"block" + reason | Smoke test marker NOT visible on next turn (additionalContext silently dropped); docs at code.claude.com/docs/en/hooks whitelist additionalContext for SessionStart/Setup/SubagentStart/UserPromptSubmit/UserPromptExpansion/PreToolUse/PostToolUse/PostToolUseFailure/PostToolBatch — Stop is NOT in this list for synchronous hooks (verified live 2026-04-29). | Locked 2026-04-29 |
 
 ## Evolution
 

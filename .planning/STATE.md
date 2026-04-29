@@ -1,6 +1,20 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-04-29T12:02:53.457Z"
+progress:
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 0
+  percent: 0
+---
+
 # State: llm-code-wiki
 
-**Last Updated:** 2026-04-28
+**Last Updated:** 2026-04-29
 
 ## Project Reference
 
@@ -8,10 +22,12 @@
 
 **Core Value:** Code documentation stays current and coherent without manual upkeep — including correctly pruning entries when code is deleted or superseded within the same session.
 
-**Current Focus:** Phase 1 — Foundation + Curator. Resolve Q1 (Stop hook injection mechanism), scaffold `.claude/{skills,agents}/` + `wiki/inbox/_session.md` placeholders, then build the digest sub-agent against a hand-authored fixture inbox.
+**Current Focus:** Phase 1 — Foundation + Curator
 
 ## Current Position
 
+Phase: 1 (Foundation + Curator) — EXECUTING
+Plan: 1 of 4
 | Field | Value |
 |-------|-------|
 | **Phase** | 1 — Foundation + Curator |
@@ -45,13 +61,11 @@
 - **Stop hook** trigger (not PostToolUse, not SessionEnd) — one coherent update per logical turn.
 - **Rolling per-project inbox**, manual digest — explicit review checkpoint.
 - **Multi-skill split** — separate skills for inbox upkeep, digest, and (preloaded) wiki rules.
+- **Q1 RESOLVED — Stop hook injection mechanism = `decision:"block" + reason`**: smoke test confirmed `additionalContext` is silently dropped on Stop hooks (marker not visible in next turn). Docs at code.claude.com/docs/en/hooks whitelist additionalContext for SessionStart/Setup/SubagentStart/UserPromptSubmit/UserPromptExpansion/PreToolUse/PostToolUse/PostToolUseFailure/PostToolBatch — Stop is NOT in this list for synchronous hooks (verified live 2026-04-29). Phase 3 must use `decision:"block" + reason` exclusively.
 
-### Pending Decisions (must resolve early in Phase 1)
+### Pending Decisions
 
-- **Q1 (CRITICAL):** Stop hook injection mechanism. Researchers disagree:
-  - Stack research: use `hookSpecificOutput.additionalContext` (non-blocking, no loop class).
-  - Architecture research: `additionalContext` is *not* whitelisted for Stop; must use `decision:"block" + reason`.
-  - Resolution path: read current `code.claude.com/docs/en/hooks` + run a one-line smoke test before any hook code lands. Document the choice in `PROJECT.md` Key Decisions.
+(None — all Phase 1 decisions resolved)
 
 ### Promoted Recommendations from Research
 
@@ -87,6 +101,7 @@ Run `/gsd-plan-phase 1` to decompose Phase 1 (Foundation + Curator) into executa
 ### Resume Instructions
 
 If resuming after a context reset:
+
 1. Read `.planning/PROJECT.md` (locked decisions, constraints).
 2. Read `.planning/research/SUMMARY.md` §"Critical Open Questions" — Q1 must be resolved before hook code is written.
 3. Read `.planning/ROADMAP.md` — current phase + success criteria.

@@ -33,7 +33,13 @@ Code documentation stays current and coherent without manual upkeep — includin
   4. The inbox is archived to `wiki/inbox/_archive/<timestamp>-session.md` *before* any new notes are written, and a post-write link-validation pass surfaces any unresolved `[[...]]` references in the digest report.
   5. The curator never modifies `wiki/Rules.md`; rule-change suggestions surface in the plan as proposals for the user to apply manually.
 
-**Plans**: TBD
+**Plans**: 4 plans (3 waves)
+
+Plans:
+- [ ] 01-01-PLAN.md — Q1 resolution (BLOCKING) + scaffolding + 5-sub-case fixture authoring
+- [ ] 01-02-PLAN.md — wiki-rules skill (thin pointer) + wiki-curator subagent definition
+- [ ] 01-03-PLAN.md — digest skill (orchestration: archive → fork → audit) + non-fork fallback
+- [ ] 01-04-PLAN.md — Acceptance gate against fixture (validates all 15 requirements)
 
 ---
 

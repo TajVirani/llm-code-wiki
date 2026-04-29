@@ -52,6 +52,10 @@ Out of scope this phase: the in-session inbox-update skill (Phase 2), the Stop h
 - **D-17:** Phase 1 includes a non-coding sub-task: read the current Claude Code Hooks reference at `code.claude.com/docs/en/hooks` (NOT cached training-data versions) and run a one-line smoke test emitting `{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"test"}}` from a Stop hook. Observe whether Claude sees "test" on the next turn. Document the chosen mechanism in PROJECT.md Key Decisions before any Phase 3 hook code is written.
 - **D-18:** Q1 resolution is a Phase 1 success criterion gate — Phase 3 cannot start until it lands.
 
+### Folder write policy
+
+- **D-19:** RESEARCH/ folder is read-only for the curator. No EDIT or SPLIT operations on files under `wiki/RESEARCH/`. When same-concept detection (Step 3) hits a note in RESEARCH/, the curator emits an ALERT row in the plan instead of an EDIT, and routes the inbox entry to its handle's original category. CREATE of brand-new research notes is allowed when no same-concept conflict exists. Backlink auto-rewrite (D-05) does NOT modify backlinks inside RESEARCH/ files — surface unrewritten backlinks in the post-write audit. Other folders (ARCHITECTURE/, FUNCTIONS/, SELF/, DIAGRAMS/) remain freely-writable.
+
 ### Claude's Discretion (planner's call)
 - Curator prompt structure (sections, ordering, examples) — informed by D-01 through D-09 but not specified
 - Internal data structure for the routing plan (in-memory representation; user sees the rendered plan)

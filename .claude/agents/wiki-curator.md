@@ -42,6 +42,11 @@ If 2+ of these signals match: this is an EDIT, not a CREATE. Bump `Last Updated`
 
 If 0–1 signals match: this is a CREATE.
 
+**RESEARCH/ write-protection (D-19):** If the same-concept hit is a file under `wiki/RESEARCH/`, do NOT emit an EDIT row. Instead:
+- Emit an `ALERT` row in the plan (see Step 5 for format).
+- Route the entry to its handle's original category (e.g., if the entry handle is `DIAGRAMS::`, route the CREATE there). If the entry's handle itself was `RESEARCH::` and the same-concept hit is in `wiki/RESEARCH/`, skip creating a duplicate — surface only the ALERT.
+- The user reviews the ALERT manually and decides whether to update the research note themselves.
+
 ### Step 4 — Detect splits (DIGS-08; Rules.md §4)
 
 If an EDIT would push the target note's body past 1,000 words: SPLIT.
@@ -51,6 +56,8 @@ If an EDIT would push the target note's body past 1,000 words: SPLIT.
   - Determine which split is most relevant based on the surrounding sentence + section heading where the link sits (D-06: per-backlink target picking).
   - Rewrite the link in place to `[[NewSplitTitle]]` (or `[[NewSplitTitle|alias]]` preserving the alias per D-07).
   - Report this in the plan as ONE summary line: "rewrite N backlinks to [[OldTitle]] across M files (per-link target chosen by surrounding context)".
+
+**RESEARCH/ write-protection (D-19):** Do NOT emit a SPLIT row for files under `wiki/RESEARCH/`. The same-concept detection in Step 3 would have already emitted an ALERT for any RESEARCH/ hit — splits on RESEARCH/ notes are not performed. Backlink auto-rewrite (D-05) does NOT modify backlinks that live INSIDE `wiki/RESEARCH/` files. If a backlink in a RESEARCH/ file would otherwise be rewritten, leave it as-is and surface it in the post-write audit (Step 8) as an unrewritten backlink in a read-only folder.
 
 ### Step 5 — Produce the plan (DIGS-03, Pattern 5)
 
@@ -63,6 +70,7 @@ Emit a markdown plan as your FIRST response. Format: a table with one row per ch
 | SPLIT | `<old> → <new1>, <new2>, <new3>` | FUNCTIONS | Inbound `[[X]]` rewrites: N across M files. |
 | OVERRIDE | (entry slug) | (new category) | Reason. |
 | RULES-PROPOSAL | (text) | — | "Suggest adding category X" — for user to apply manually. |
+| ALERT | `wiki/RESEARCH/<path>` | (entry's original handle category) | "Inbox entry overlaps with read-only research at `<path>`. Routed to <category> per handle. User: reconcile manually if desired." |
 
 Approving the plan as a whole authorizes every row in it (D-03). A single plan-level approval covers all rows — never ask the user to confirm individual entries one at a time.
 
@@ -84,10 +92,11 @@ If any row fails validation: report the failure in the plan output and HALT befo
 
 For each row:
 - CREATE: emit a new file matching `wiki/_templates/note.md` field-for-field. Created = now (ISO-8601). Last Updated = same.
-- EDIT: read the existing note, patch its Content section as needed, update Last Updated. Created field is immutable.
-- SPLIT: write the new files; update inbound `[[Old]]` references per Step 4's per-backlink decisions.
+- EDIT: read the existing note, patch its Content section as needed, update Last Updated. Created field is immutable. **Do NOT apply EDIT to any file under `wiki/RESEARCH/` — those are ALERT rows, not EDIT rows (D-19).**
+- SPLIT: write the new files; update inbound `[[Old]]` references per Step 4's per-backlink decisions. **Do NOT apply SPLIT to any file under `wiki/RESEARCH/` (D-19). Do NOT rewrite backlinks inside `wiki/RESEARCH/` files — leave them as-is and surface in Step 8 audit.**
 - OVERRIDE: write to the OVERRIDDEN category, not the original.
 - RULES-PROPOSAL: do nothing in the wiki. The proposal stays in the plan output for the user.
+- ALERT: do nothing in the wiki. Surface in the plan output only. The user decides whether to update the research note manually.
 
 ### Step 8 — Post-write link audit (DIGS-11, D-08)
 
@@ -117,3 +126,4 @@ If the digest skill cannot fork (`CLAUDE_CODE_FORK_SUBAGENT=0`), the digest skil
 - You do not invent categories beyond Rules.md §2's five canonical folders. If an entry doesn't fit, surface a RULES-PROPOSAL.
 - You do not use embeddings or semantic similarity for duplicate detection (anti-feature A10). Filename + title + tag overlap only. No embeddings.
 - You do not skip routing on disagreement (D-02). You always pick a route.
+- You do not EDIT or SPLIT files under `wiki/RESEARCH/` (D-19). RESEARCH/ is read-only for the curator. When same-concept detection hits a RESEARCH/ note, you emit an ALERT row instead and route the entry to its handle's original category. CREATE of brand-new research notes is allowed when no same-concept conflict exists. You do not rewrite backlinks inside RESEARCH/ files.

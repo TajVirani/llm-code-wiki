@@ -14,7 +14,7 @@ progress:
 
 # State: llm-code-wiki
 
-**Last Updated:** 2026-04-29
+**Last Updated:** 2026-04-29 (01-01 complete)
 
 ## Project Reference
 
@@ -27,13 +27,13 @@ progress:
 ## Current Position
 
 Phase: 1 (Foundation + Curator) — EXECUTING
-Plan: 1 of 4
+Plan: 2 of 4
 | Field | Value |
 |-------|-------|
 | **Phase** | 1 — Foundation + Curator |
-| **Plan** | (none yet — run `/gsd-plan-phase 1`) |
-| **Status** | Not started |
-| **Progress** | `[ ░░░░░░░░░░░░░░░░░░░░ ] 0%` |
+| **Plan** | 01-01 COMPLETE — 01-02 next |
+| **Status** | In progress |
+| **Progress** | `[ ████░░░░░░░░░░░░░░░░ ] 25%` |
 | **Started** | 2026-04-28 (project initialization) |
 
 ## Roadmap At-a-Glance
@@ -48,9 +48,10 @@ Plan: 1 of 4
 | Metric | Value |
 |--------|-------|
 | Phases complete | 0 / 4 |
-| Plans complete | 0 / TBD |
+| Plans complete | 1 / 4 |
 | v1 Requirements mapped | 26 / 26 ✓ |
 | v1 Requirements validated | 0 / 26 |
+| 01-01 duration | ~20 min (continuation after checkpoint) |
 
 ## Accumulated Context
 
@@ -92,11 +93,11 @@ Plan: 1 of 4
 
 ### Last Session Summary
 
-Project initialized 2026-04-28. PROJECT.md, REQUIREMENTS.md (26 v1 requirements across CAPT/DIGS/LIFE/INST), four research deliverables (STACK, FEATURES, ARCHITECTURE, PITFALLS, SUMMARY) authored. Roadmap created with 4 phases reflecting the digest-first build order on which all four researchers converged.
+2026-04-29: Completed plan 01-01. Q1 resolved (Stop hook = decision:block+reason, smoke test confirmed). Wave-2 anchor directories created. Persistent wiki/inbox/_session.md placeholder satisfies ROADMAP Phase 1 success criterion 1. 7-entry 5-sub-case fixture corpus at tests/fixtures/_session-fixture.md ready for Plan 04.
 
 ### Next Action
 
-Run `/gsd-plan-phase 1` to decompose Phase 1 (Foundation + Curator) into executable plans. The first plan should resolve Q1; subsequent plans should scaffold the layout and build the curator sub-agent + digest skill against a hand-authored fixture inbox.
+Execute plan 01-02 (wiki-rules skill + wiki-curator subagent scaffolding, Wave 2).
 
 ### Resume Instructions
 

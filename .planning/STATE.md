@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: "2026-04-29T12:30:00Z"
+last_updated: "2026-04-29T12:42:00Z"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 50
+  completed_plans: 3
+  percent: 75
 ---
 
 # State: llm-code-wiki
 
-**Last Updated:** 2026-04-29 (01-02 complete)
+**Last Updated:** 2026-04-29 (01-03 complete)
 
 ## Project Reference
 
@@ -31,9 +31,9 @@ Plan: 2 of 4
 | Field | Value |
 |-------|-------|
 | **Phase** | 1 — Foundation + Curator |
-| **Plan** | 01-02 COMPLETE — 01-03 next |
+| **Plan** | 01-03 COMPLETE — 01-04 next |
 | **Status** | In progress |
-| **Progress** | `[ ████████░░░░░░░░░░░░ ] 50%` |
+| **Progress** | `[ ████████████░░░░░░░░ ] 75%` |
 | **Started** | 2026-04-28 (project initialization) |
 
 ## Roadmap At-a-Glance
@@ -48,11 +48,12 @@ Plan: 2 of 4
 | Metric | Value |
 |--------|-------|
 | Phases complete | 0 / 4 |
-| Plans complete | 2 / 4 |
+| Plans complete | 3 / 4 |
 | v1 Requirements mapped | 26 / 26 ✓ |
 | v1 Requirements validated | 0 / 26 |
 | 01-01 duration | ~20 min (continuation after checkpoint) |
 | 01-02 duration | ~7 min |
+| 01-03 duration | ~12 min |
 
 ## Accumulated Context
 
@@ -64,6 +65,10 @@ Plan: 2 of 4
 - **Rolling per-project inbox**, manual digest — explicit review checkpoint.
 - **Multi-skill split** — separate skills for inbox upkeep, digest, and (preloaded) wiki rules.
 - **Q1 RESOLVED — Stop hook injection mechanism = `decision:"block" + reason`**: smoke test confirmed `additionalContext` is silently dropped on Stop hooks (marker not visible in next turn). Docs at code.claude.com/docs/en/hooks whitelist additionalContext for SessionStart/Setup/SubagentStart/UserPromptSubmit/UserPromptExpansion/PreToolUse/PostToolUse/PostToolUseFailure/PostToolBatch — Stop is NOT in this list for synchronous hooks (verified live 2026-04-29). Phase 3 must use `decision:"block" + reason` exclusively.
+
+- **Digest archive timestamp format:** `date +%Y-%m-%dT%H%M` — minute-resolution ISO-8601, no colons (filesystem-safe). Matches ARCHITECTURE.md convention.
+- **Post-write audit grep exclusion:** Step 5 explicitly excludes `wiki/inbox/_archive` so old archived `[[X]]` references don't pollute the unresolved-link report (T-03-05 mitigation).
+- **Non-fork fallback (B4):** References agent NAME `wiki-curator` only; says "follow whatever protocol the curator file defines." No step count or heading cross-references — wave-2 parallelism preserved.
 
 ### Pending Decisions
 
@@ -94,11 +99,11 @@ Plan: 2 of 4
 
 ### Last Session Summary
 
-2026-04-29: Completed plan 01-02. wiki-rules thin-pointer skill and wiki-curator 8-step protocol subagent created and committed. All automated verification checks passed. DIGS-04, DIGS-05, DIGS-06, DIGS-07, DIGS-13 all have explicit support in curator prompt. Plan 03 (digest skill) can now reference `agent: wiki-curator` by name.
+2026-04-29: Completed plan 01-03. digest SKILL.md (116 lines) authored — archive-before-write (LIFE-02/LIFE-03/D-14), fork into wiki-curator (D-13), post-write link audit (DIGS-11), empty-inbox no-op (DIGS-12). Non-fork fallback reference created per B4 (references agent NAME only, no step count). All automated verification checks passed.
 
 ### Next Action
 
-Execute plan 01-03 (digest skill: orchestration — archive → fork → audit — + non-fork fallback).
+Execute plan 01-04 (fixture acceptance run — validate wiki-curator against tests/fixtures/_session-fixture.md).
 
 ### Resume Instructions
 

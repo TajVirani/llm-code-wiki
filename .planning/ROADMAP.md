@@ -36,8 +36,8 @@ Code documentation stays current and coherent without manual upkeep — includin
 **Plans**: 4 plans (3 waves)
 
 Plans:
-- [ ] 01-01-PLAN.md — Q1 resolution (BLOCKING) + scaffolding + 5-sub-case fixture authoring
-- [ ] 01-02-PLAN.md — wiki-rules skill (thin pointer) + wiki-curator subagent definition
+- [x] 01-01-PLAN.md — Q1 resolution (BLOCKING) + scaffolding + 5-sub-case fixture authoring
+- [x] 01-02-PLAN.md — wiki-rules skill (thin pointer) + wiki-curator subagent definition
 - [ ] 01-03-PLAN.md — digest skill (orchestration: archive → fork → audit) + non-fork fallback
 - [ ] 01-04-PLAN.md — Acceptance gate against fixture (validates all 15 requirements)
 
@@ -101,7 +101,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Curator | 0/? | Not started | — |
+| 1. Foundation + Curator | 2/4 | In progress | — |
 | 2. In-Session Inbox Skill | 0/? | Not started | — |
 | 3. Stop Hook Automation | 0/? | Not started | — |
 | 4. Install & Distribution | 0/? | Not started | — |

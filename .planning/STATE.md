@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-04-29T12:02:53.457Z"
+status: in_progress
+last_updated: "2026-04-29T12:30:00Z"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
-  percent: 0
+  completed_plans: 2
+  percent: 50
 ---
 
 # State: llm-code-wiki
 
-**Last Updated:** 2026-04-29 (01-01 complete)
+**Last Updated:** 2026-04-29 (01-02 complete)
 
 ## Project Reference
 
@@ -31,9 +31,9 @@ Plan: 2 of 4
 | Field | Value |
 |-------|-------|
 | **Phase** | 1 — Foundation + Curator |
-| **Plan** | 01-01 COMPLETE — 01-02 next |
+| **Plan** | 01-02 COMPLETE — 01-03 next |
 | **Status** | In progress |
-| **Progress** | `[ ████░░░░░░░░░░░░░░░░ ] 25%` |
+| **Progress** | `[ ████████░░░░░░░░░░░░ ] 50%` |
 | **Started** | 2026-04-28 (project initialization) |
 
 ## Roadmap At-a-Glance
@@ -48,10 +48,11 @@ Plan: 2 of 4
 | Metric | Value |
 |--------|-------|
 | Phases complete | 0 / 4 |
-| Plans complete | 1 / 4 |
+| Plans complete | 2 / 4 |
 | v1 Requirements mapped | 26 / 26 ✓ |
 | v1 Requirements validated | 0 / 26 |
 | 01-01 duration | ~20 min (continuation after checkpoint) |
+| 01-02 duration | ~7 min |
 
 ## Accumulated Context
 
@@ -93,11 +94,11 @@ Plan: 2 of 4
 
 ### Last Session Summary
 
-2026-04-29: Completed plan 01-01. Q1 resolved (Stop hook = decision:block+reason, smoke test confirmed). Wave-2 anchor directories created. Persistent wiki/inbox/_session.md placeholder satisfies ROADMAP Phase 1 success criterion 1. 7-entry 5-sub-case fixture corpus at tests/fixtures/_session-fixture.md ready for Plan 04.
+2026-04-29: Completed plan 01-02. wiki-rules thin-pointer skill and wiki-curator 8-step protocol subagent created and committed. All automated verification checks passed. DIGS-04, DIGS-05, DIGS-06, DIGS-07, DIGS-13 all have explicit support in curator prompt. Plan 03 (digest skill) can now reference `agent: wiki-curator` by name.
 
 ### Next Action
 
-Execute plan 01-02 (wiki-rules skill + wiki-curator subagent scaffolding, Wave 2).
+Execute plan 01-03 (digest skill: orchestration — archive → fork → audit — + non-fork fallback).
 
 ### Resume Instructions
 

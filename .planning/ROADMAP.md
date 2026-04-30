@@ -81,7 +81,11 @@ Plans:
   4. Every hook fire writes timestamp + session_id + outcome to `.claude/inbox/.hook-log`, providing auditable proof of firing and defending against silent failure (Pitfall 4).
   5. End-to-end real coding session: per-turn token overhead is bounded (cheap inbox-update prompt remains cheap under hook automation), and the Phase 1 curator still digests the auto-captured inbox cleanly.
 
-**Plans**: TBD
+**Plans**: 2 plans (2 waves)
+
+Plans:
+- [ ] 03-01-PLAN.md — Hook script (loop-protection trifecta, heartbeat, pre-filter, settings.json registration)
+- [ ] 03-02-PLAN.md — Real-session smoke test acceptance gate (human-verified)
 
 ---
 
@@ -107,7 +111,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundation + Curator | 4/4 | Complete | 2026-04-28 |
 | 2. In-Session Inbox Skill | 2/2 | Complete | 2026-04-28 |
-| 3. Stop Hook Automation | 0/? | Not started | — |
+| 3. Stop Hook Automation | 0/2 | In progress | — |
 | 4. Install & Distribution | 0/? | Not started | — |
 
 ## Coverage

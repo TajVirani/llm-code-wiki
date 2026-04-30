@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: "2026-04-30T02:25:22Z"
+last_updated: "2026-04-28T00:00:00Z"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 55
+  total_plans: 8
+  completed_plans: 8
+  percent: 62
 ---
 
 # State: llm-code-wiki
 
-**Last Updated:** 2026-04-30 (03-01 complete — Phase 3 plan 01 done)
+**Last Updated:** 2026-04-28 (04-01 complete — Phase 4 plan 01 done)
 
 ## Project Reference
 
@@ -22,32 +22,32 @@ progress:
 
 **Core Value:** Code documentation stays current and coherent without manual upkeep — including correctly pruning entries when code is deleted or superseded within the same session.
 
-**Current Focus:** Phase 3 — Stop Hook Automation
+**Current Focus:** Phase 4 — Install & Distribution
 
 ## Current Position
 
-Phase: 3 (Stop Hook Automation) — IN PROGRESS (03-01 complete)
+Phase: 4 (Install & Distribution) — IN PROGRESS (04-01 complete)
 | Field | Value |
 |-------|-------|
-| **Phase** | Phase 3 — 03-01 complete |
-| **Plan** | 03-01 COMPLETE |
+| **Phase** | Phase 4 — 04-01 complete |
+| **Plan** | 04-01 COMPLETE |
 | **Status** | In progress |
-| **Progress** | `[ ███████████░░░░░░░░░ ] 55%` |
+| **Progress** | `[ ████████████░░░░░░░░ ] 62%` |
 | **Started** | 2026-04-28 (project initialization) |
 
 ## Roadmap At-a-Glance
 
 - [x] **Phase 1: Foundation + Curator** — COMPLETE
 - [x] **Phase 2: In-Session Inbox Skill** — COMPLETE
-- [ ] **Phase 3: Stop Hook Automation** ← *in progress (03-01 done)*
-- [ ] Phase 4: Install & Distribution
+- [x] **Phase 3: Stop Hook Automation** — COMPLETE (03-01 done)
+- [ ] **Phase 4: Install & Distribution** ← *in progress (04-01 done)*
 
 ## Performance Metrics
 
 | Metric | Value |
 |--------|-------|
 | Phases complete | 2 / 4 |
-| Plans complete | 7 / 7 (Phases 1+2+3-01) |
+| Plans complete | 8 / 8 (Phases 1+2+3-01+4-01) |
 | v1 Requirements mapped | 26 / 26 ✓ |
 | v1 Requirements validated | 23 / 26 (CAPT-01 now validated) |
 | 01-01 duration | ~20 min (continuation after checkpoint) |
@@ -57,6 +57,7 @@ Phase: 3 (Stop Hook Automation) — IN PROGRESS (03-01 complete)
 | 02-01 duration | ~10 min (inbox-update skill + inbox reset) |
 | 02-02 duration | ~8 min (CAPT-04 fixture loop — human checkpoint approved) |
 | 03-01 duration | ~3 min (Stop hook script + settings.json + smoke tests) |
+| 04-01 duration | ~12 min (/wiki-install skill + SETTINGS-SNIPPET.md) |
 
 ## Accumulated Context
 
@@ -86,9 +87,17 @@ Phase: 3 (Stop Hook Automation) — IN PROGRESS (03-01 complete)
 - **Transcript pre-filter via JSONL grep** — no-op turns (no Edit/Write/MultiEdit) exit silently; Pitfall 15 mitigated.
 - **CAPT-01 validated** — Stop hook + settings.json installed and all automated checks pass.
 
+### Key Decisions Added in Phase 4 (04-01)
+
+- **SETTINGS-SNIPPET.md lives at .claude/skills/wiki-install/ (co-located with skill)** — not under wiki/ (fixture territory only). D-08 abort message references correct path.
+- **B1: name-collision detection deferred to D-13 distribution mechanism** — /wiki-install only verifies 4 required files + executable bit for inbox-stop.sh.
+- **B2: smoke test uses heartbeat-based pass criterion** — checks .hook-log for wiki-install-test session_id (replaces false-passing WARN-on-no-decision pattern that silently passed when CLAUDE_PROJECT_DIR was unset).
+- **B3: jq --arg with HOOK_CMD variable preserves literal $CLAUDE_PROJECT_DIR token** — post-merge grep verifies portability across machines.
+- **W4: kill switch (touch .claude/inbox/.disabled) documented in CLAUDE.md quick reference section**.
+
 ### Pending Decisions
 
-(None — all Phase 1, Phase 2, and Phase 3 (03-01) decisions resolved)
+(None — all Phase 1, Phase 2, Phase 3 (03-01), and Phase 4 (04-01) decisions resolved)
 
 ### Promoted Recommendations from Research
 
@@ -115,11 +124,11 @@ Phase: 3 (Stop Hook Automation) — IN PROGRESS (03-01 complete)
 
 ### Last Session Summary
 
-2026-04-30: Completed plan 03-01. Authored `.claude/hooks/inbox-stop.sh` (108 lines, full loop-protection trifecta + heartbeat + transcript pre-filter + decision:block). Created `.claude/settings.json` registering Stop hook only (no SubagentStop). All 4 pipe-stdin smoke tests passed. All 12 automated checks passed. CAPT-01 validated.
+2026-04-28: Completed plan 04-01. Authored `.claude/skills/wiki-install/SKILL.md` (full 7-step bootstrap: precondition check, wiki/ scaffolding, D-07 three-case settings.json merge with B3 jq fix, D-09/D-10 CLAUDE.md append, B2 heartbeat smoke test, D-12 verbose logging). Created `.claude/skills/wiki-install/SETTINGS-SNIPPET.md` (jq-absent manual fallback with all 3 merge cases). Fixed pre-existing wrong SETTINGS-SNIPPET.md path (wiki/_templates/ → .claude/skills/wiki-install/). All verifications passed.
 
 ### Next Action
 
-Phase 3 has 1 plan (03-01). Phase 3 is now complete pending any acceptance verification. Continue to Phase 4 — Install & Distribution.
+Phase 4 plan 01 is complete. Continue to Phase 4 plan 02 — Sandbox validation, wiki/README.md authoring, human-verify acceptance gate.
 
 ### Resume Instructions
 

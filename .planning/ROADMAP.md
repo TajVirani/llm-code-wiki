@@ -84,7 +84,7 @@ Plans:
 **Plans**: 2 plans (2 waves)
 
 Plans:
-- [ ] 03-01-PLAN.md — Hook script (loop-protection trifecta, heartbeat, pre-filter, settings.json registration)
+- [x] 03-01-PLAN.md — Hook script (loop-protection trifecta, heartbeat, pre-filter, settings.json registration)
 - [ ] 03-02-PLAN.md — Real-session smoke test acceptance gate (human-verified)
 
 ---
@@ -106,7 +106,7 @@ Plans:
 **Plans**: 2 plans (2 waves)
 
 Plans:
-- [ ] 04-01-PLAN.md — Author /wiki-install skill (.claude/skills/wiki-install/SKILL.md) + jq fallback snippet
+- [x] 04-01-PLAN.md — Author /wiki-install skill (.claude/skills/wiki-install/SKILL.md) + jq fallback snippet
 - [ ] 04-02-PLAN.md — Sandbox validation, wiki/README.md authoring, human-verify acceptance gate
 
 ## Progress
@@ -115,8 +115,8 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundation + Curator | 4/4 | Complete | 2026-04-28 |
 | 2. In-Session Inbox Skill | 2/2 | Complete | 2026-04-28 |
-| 3. Stop Hook Automation | 0/2 | In progress | — |
-| 4. Install & Distribution | 0/2 | Not started | — |
+| 3. Stop Hook Automation | 1/2 | In progress | — |
+| 4. Install & Distribution | 1/2 | In progress | — |
 
 ## Coverage
 

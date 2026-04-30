@@ -60,11 +60,12 @@ If `disableSkillShellExecution` is set on this Claude Code instance, the bash in
 
 ## Step 4 — Curator runs (this is where the fork happens)
 
-Per the frontmatter `context: fork` + `agent: wiki-curator`, this skill body is delivered to a forked wiki-curator subagent in a fresh context. The curator follows its 8-step protocol (defined in `.claude/agents/wiki-curator.md`), producing:
+Per the frontmatter `context: fork` + `agent: wiki-curator`, this skill body is delivered to a forked wiki-curator subagent in a fresh context. The curator follows its 9-step protocol (defined in `.claude/agents/wiki-curator.md`), producing:
 
 1. A markdown plan listing every CREATE / EDIT / SPLIT / OVERRIDE / RULES-PROPOSAL row.
 2. A validation result against Rules.md.
 3. The applied changes (writes / edits to `wiki/<CATEGORY>/<slug>.md`).
+4. An updated `wiki/topic-index.md` — the curator's Step 9 rebuilds the recall navigation map for any topics affected by this digest's writes (new entries appended, deprecated paths removed, alphabetized bullets, `Last Updated` bumped).
 
 Per D-03: approving the plan as a whole authorizes every row. The curator does NOT prompt for per-row confirmation.
 
@@ -100,6 +101,7 @@ Final output to the user:
 **Overrides applied:** <list of FUNCTIONS→ARCHITECTURE etc. with reasons>
 **Rule-change proposals (NOT applied — for user to consider):** <list>
 **Unresolved wiki-links:** <list, or "none">
+**Topic-index updated:** <list of topic bullets added/edited, or "no change">
 ```
 
 ## Non-fork fallback (D-13)

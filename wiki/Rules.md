@@ -105,6 +105,26 @@ When converting an inbox file:
 
 If a user request appears to conflict with these rules, surface the conflict before acting. These rules govern how the wiki stays coherent — bending them silently breaks the system.
 
+### 11. The `topic-index.md` file is auto-maintained
+
+`wiki/topic-index.md` is the recall navigation map. It is rebuilt by the curator at the end of every `/digest` run (see §6 Step 8). One bullet per topic, format:
+
+```
+- **topic-name** — One-sentence summary (≤25 words). Files: PATH1, PATH2
+```
+
+Rules:
+
+- Do not edit by hand — manual edits will be overwritten on the next digest.
+- Topic name in **bold**, kebab-case.
+- Summary describes what the topic *covers*, not what each individual file says.
+- Files are comma-separated relative paths from `wiki/` root. No `[[wiki-link]]` syntax — explicit paths so grep returns precise hits for the recall agent.
+- No nesting, no sub-bullets, no extra prose. Split a topic into two if it grows beyond one line.
+- Alphabetized by topic name for stable diffs.
+- Hard cap: ≤ 100 entries.
+
+The recall agent (`wiki-recall`) reads this file as the entry point for every `/recall` and every UserPromptSubmit-triggered recall. Keeping it small and accurate is what makes recall fast.
+
 ## Related Notes
 
 - [[Note Title]]

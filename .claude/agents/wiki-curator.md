@@ -107,6 +107,37 @@ After all writes:
 
 Aliased links: per D-07, the audit checks the canonical title (the part before `|`), not the alias text.
 
+### Step 9 — Update wiki/topic-index.md (recall navigation map)
+
+After the link audit passes, update `wiki/topic-index.md` to reflect this digest's writes. The index is the entry point for the wiki-recall agent — keeping it accurate is what makes recall fast.
+
+Read `wiki/topic-index.md`. Each line under `## Content` is one bullet of the form:
+```
+- **topic-name** — Summary (≤25 words). Files: PATH1, PATH2
+```
+
+For each note **created** in this digest run:
+1. Determine the topic. Prefer an existing index bullet whose topic name appears in the note's `**Tags**:` line or H1 title (case-insensitive, ignore the leading `#` on tags).
+2. **Existing topic bullet found:** append the note's relative path (from `wiki/` root, e.g. `ARCHITECTURE/auth-base-flow.md`) to the comma-separated `Files:` list, deduped. Do NOT rewrite the topic summary unless the new note materially expands the topic's scope — preserve what was there.
+3. **No matching topic bullet:** create a new bullet. Topic name = the dominant tag (without `#`) or a kebab-case derivation of the note's title concept. Summary = a ≤25-word sentence describing what the topic covers (synthesize from the note's Summary field; do NOT copy verbatim if the note's summary is too narrow). Files = the new note's path.
+
+For each note **edited** in this digest run (EDIT row): no index change unless the edit added or removed primary tags. If tags changed, update the topic mapping accordingly.
+
+For each note **split** in this digest run (SPLIT row): replace the old path in any `Files:` list with the new split paths, deduped.
+
+For any note **deprecated** (Tags now contain `#deprecated` and a non-deprecated alternative is also indexed): remove the deprecated path from `Files:` lists. If a topic bullet ends up with zero files, remove the bullet.
+
+Final touches:
+- Keep bullets alphabetized by topic name (ASCII sort) for stable diffs across digests.
+- Bump the `**Last Updated**:` field at the top of `topic-index.md` to the current ISO-8601 timestamp.
+- Cap: ≤ 100 bullets total. If exceeded, surface a RULES-PROPOSAL row in the digest summary suggesting the user split the index by category — do not auto-split.
+- Do NOT touch unrelated bullets in this update — only the rows affected by this digest's writes. Stable diff matters.
+- Preserve the HTML comment block (the maintenance note inside `## Content`). Do not delete or rewrite it.
+
+If `wiki/topic-index.md` does not exist yet (e.g., the user never ran `/wiki-install` after the recall system was added), create it from the canonical shape (see `wiki/topic-index.md` in the source distribution) before adding bullets.
+
+This step writes ONLY to `wiki/topic-index.md`. It does not touch any other file. It does not propose new categories — those still flow through RULES-PROPOSAL rows in Step 5.
+
 ## Hybrid override examples (D-01)
 
 Good (route stays as-is, silent):

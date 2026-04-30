@@ -1,8 +1,8 @@
 
 **Summary**: `/wiki-digest` consolidates session-inbox entries and research-doc drops into filed wiki notes via the curator subagent, owning archive-before-write, audit, and source-cleanup lifecycle.
-**Tags**: #skill #digest #lifecycle #function
+**Tags**: #skill #digest #lifecycle #function #fork
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:32:00+00:00
+**Last Updated**: 2026-04-30T16:42:00+00:00
 
 ---
 
@@ -11,7 +11,9 @@
 **Path:** `.claude/skills/wiki-digest/SKILL.md`
 **Invocation:** `/wiki-digest [optional-inbox-path]`
 
-**Role.** Consolidates inbox sources into filed wiki notes via the wiki-curator subagent. Owns the *lifecycle* around the curator's writes: source discovery, archive-before-write, post-write link audit, source-file deletion on success, and the empty-inbox no-op path.
+**Role.** Consolidates inbox sources into filed wiki notes via the wiki-curator subagent. Owns the *lifecycle* around the curator's writes: source discovery, archive-before-write, post-write link audit, source-file cleanup on success, and the empty-inbox no-op path.
+
+**Fork-mode contract.** The skill frontmatter declares `context: fork` + `agent: wiki-curator`. With `context: fork` there is no separate parent runtime that resumes after the curator finishes — the curator IS the only executor. The skill body intro states this unambiguously and addresses every Step 4–7 instruction in second person at the curator. See [[Fork Context No Parent Runtime]] for the failure mode that motivated this wording.
 
 **Step 1 — Source discovery (two source types):**
 
@@ -28,9 +30,9 @@ The combined no-op guard skips the run only when *both* sources are empty.
 
 **Step 5 — Post-write link audit (DIGS-11, D-08).** Greps every `[[X]]` and `[[X|alias]]` in the wiki and verifies the canonical title resolves.
 
-**Step 6a — Reset session inbox** to the empty canonical template once the curator's writes succeeded.
+**Step 6a — Reset session inbox** to the empty canonical template once the curator's writes succeeded. The curator performs this Write itself (duplicates curator agent Step 10) — under `context: fork` no other executor exists.
 
-**Step 6b — Delete consumed research-doc sources** — only when every concept derived from a doc was successfully applied. Any unresolved CONFLICT-ON-RESEARCH or apply error preserves the source for retry. The Step 2 archive is the safety net.
+**Step 6b — Tombstone consumed research-doc sources.** For each doc whose concepts were ALL successfully applied, the curator overwrites `wiki/inbox/<name>.md` with a one-line marker pointing to the Step 2b archive. True deletion via `rm` is unavailable because the curator's allowed-tools list omits Bash; the tombstone marker is the Write-based fallback. The user does the final `rm` after seeing the tombstone list. Any unresolved CONFLICT-ON-RESEARCH or apply error preserves the source for retry. The Step 2 archive is the safety net.
 
 **Step 7 — Digest summary.** Grouped by source: inbox entries processed, research docs consumed (with derived-notes list and source-file disposition), notes created/edited, splits, overrides, alerts, conflicts, rule proposals, unresolved wiki-links, topic-index changes.
 
@@ -39,3 +41,4 @@ The combined no-op guard skips the run only when *both* sources are empty.
 - [[Wiki Curator Agent]]
 - [[Research Doc Ingestion]]
 - [[Digest Step 6 Inbox Reset]]
+- [[Fork Context No Parent Runtime]]

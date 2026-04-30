@@ -2,7 +2,7 @@
 **Summary**: Greppable topic-to-files index — entry point for wiki recall.
 **Tags**: #wiki #index #recall
 **Created**: 2026-04-30T00:00:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:42:00+00:00
 
 ---
 
@@ -26,6 +26,7 @@ Do not edit by hand — bullets that are not the result of a digest run will be 
 - **brainstorm-fallback-cadence** — Default 10-turn cadence for brainstorm-fallback capture, override via `LCW_BRAINSTORM_TURNS`, ≤5 entries per fire, counter resets on real captures. Files: RESEARCH/brainstorm-fallback-cadence.md
 - **curator-step-9-index-update** — Curator protocol step that rebuilds topic-index.md after each digest, scoped to topics affected by writes. Files: ARCHITECTURE/curator-step-9-index-update.md
 - **digest-step-6-inbox-reset** — wiki-digest skill body resets `wiki/inbox/_session.md` to empty template after curator success and post-write audit. Files: ARCHITECTURE/digest-step-6-inbox-reset.md
+- **fork-context-no-parent-runtime** — Under Claude Code `context: fork`, the skill body becomes the subagent prompt and no parent runtime resumes; lifecycle steps must be owned by the subagent. Files: RESEARCH/fork-context-no-parent-runtime.md
 - **inbox-stop-hook** — Stop hook script orchestrating capture path, loop-protection trifecta D-01/D-02/D-03, and per-session brainstorm counter. Files: FUNCTIONS/inbox-stop-hook.md
 - **inbox-update-skill** — Skill maintaining `wiki/inbox/_session.md` from artifact ops; adds brainstorm-fallback mode that scans recent conversation for design decisions. Files: FUNCTIONS/inbox-update-skill.md
 - **recall-path** — Read-side architecture: UserPromptSubmit hook plus wiki-recall sub-agent surface relevant wiki context before Claude responds. Files: ARCHITECTURE/recall-path.md

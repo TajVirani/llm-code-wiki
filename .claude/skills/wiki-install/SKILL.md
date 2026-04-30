@@ -22,11 +22,11 @@ for f in \
   "$CLAUDE_PROJECT_DIR/.claude/agents/wiki-curator.md" \
   "$CLAUDE_PROJECT_DIR/.claude/agents/wiki-recall.md" \
   "$CLAUDE_PROJECT_DIR/.claude/hooks/inbox-stop.sh" \
-  "$CLAUDE_PROJECT_DIR/.claude/hooks/wiki-recall-prompt.sh"; do
+  "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh"; do
   test -f "$f" || { echo "[wiki-install] ABORT: $f not found. Copy the .claude/ tree before running /wiki-install."; exit 1; }
 done
 test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/inbox-stop.sh" || { echo "[wiki-install] ABORT: inbox-stop.sh exists but is not executable. Run: chmod +x .claude/hooks/inbox-stop.sh"; exit 1; }
-test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/wiki-recall-prompt.sh" || { echo "[wiki-install] ABORT: recall-prompt.sh exists but is not executable. Run: chmod +x .claude/hooks/wiki-recall-prompt.sh"; exit 1; }
+test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh" || { echo "[wiki-install] ABORT: recall-prompt.sh exists but is not executable. Run: chmod +x .claude/hooks/recall-prompt.sh"; exit 1; }
 echo "[wiki-install] Precondition check passed — .claude/ tree is in place."
 ```
 
@@ -98,7 +98,17 @@ else
 fi
 ```
 
-If absent, Read this repo's `wiki/Rules.md` to get the canonical content, then Write it to `$CLAUDE_PROJECT_DIR/wiki/Rules.md`. After writing:
+If absent, Read this repo's `wiki/Rules.md` to get the canonical content, then Write it to `$CLAUDE_PROJECT_DIR/wiki/Rules.md`. If unavailable (e.g., this skill was fetched standalone via remote install and the source repo isn't checked out), the remote-install flow's manifest fetch should already have placed `wiki/Rules.md` at the target before this step runs — so reaching this step with the file absent indicates a partial install. In that case, abort with a clear error pointing the user back to `dist-manifest.txt`:
+
+```bash
+if test ! -f "$CLAUDE_PROJECT_DIR/wiki/Rules.md"; then
+  echo "[wiki-install] ABORT: wiki/Rules.md is required but not present and no source content available."
+  echo "[wiki-install] Re-run the remote install (see INSTALL.md 'Remote install') or copy wiki/Rules.md manually from the source repo."
+  exit 1
+fi
+```
+
+After writing (or if the file was placed by remote-install fetch and Step 3 already skipped):
 
 ```bash
 echo "[wiki-install] Created wiki/Rules.md"
@@ -131,7 +141,40 @@ else
 fi
 ```
 
-If absent, Read this repo's `wiki/topic-index.md` to get the canonical (empty) seed, then Write it to `$CLAUDE_PROJECT_DIR/wiki/topic-index.md`. The seed contains only the front-matter and an HTML maintenance comment — it is auto-populated by `/wiki-digest` (curator Step 9) as notes accumulate.
+If absent, use Write to create `$CLAUDE_PROJECT_DIR/wiki/topic-index.md` with the canonical empty seed below. This content is the authoritative seed — `wiki/topic-index.md` is intentionally NOT shipped via the distribution manifest because the source repo's copy is populated with dogfood bullets that don't apply to fresh installs.
+
+```markdown
+
+**Summary**: Greppable topic-to-files index — entry point for wiki recall.
+**Tags**: #wiki #index #recall
+**Created**: <FILL ISO-8601 timestamp at write time>
+**Last Updated**: <SAME timestamp as Created>
+
+---
+
+## Content
+
+<!--
+Auto-maintained by `/wiki-digest`. One bullet per topic. Format:
+  - **topic** — One sentence (≤25 words) describing what the topic covers. Files: PATH1, PATH2
+
+Rules:
+- Topic name in **bold**, kebab-case.
+- Summary describes what the topic *covers*, not what each file says.
+- Files: comma-separated relative paths from wiki/ root. No [[wiki-link]] syntax — paths are explicit so grep returns precise hits.
+- No nesting, sub-bullets, or extra prose. Split a topic into two if it grows beyond one line.
+- Alphabetized by topic name for stable diffs.
+- Hard cap: ≤100 entries.
+
+Do not edit by hand — bullets that are not the result of a digest run will be overwritten on the next /wiki-digest.
+-->
+
+## Related Notes
+
+- [[Rules]]
+```
+
+The seed contains only front-matter, the HTML maintenance comment, and a single `Related Notes` link. `/wiki-digest` (curator Step 9) populates the bullet list as notes accumulate.
 
 After writing:
 
@@ -182,7 +225,7 @@ Use Write to create `.claude/settings.json` with the full canonical structure (b
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wiki-recall-prompt.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/recall-prompt.sh",
             "timeout": 10
           }
         ]
@@ -280,7 +323,7 @@ fi
 If `.hooks.UserPromptSubmit[0].hooks` already exists:
 
 ```bash
-HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/wiki-recall-prompt.sh'
+HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh'
 jq --arg cmd "$HOOK_CMD" '.hooks.UserPromptSubmit[0].hooks += [{"type":"command","command":$cmd,"timeout":10}]' \
   "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/wiki-install-settings-tmp.json \
   && mv /tmp/wiki-install-settings-tmp.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
@@ -289,7 +332,7 @@ jq --arg cmd "$HOOK_CMD" '.hooks.UserPromptSubmit[0].hooks += [{"type":"command"
 If `.hooks.UserPromptSubmit` key is absent (create it):
 
 ```bash
-HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/wiki-recall-prompt.sh'
+HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh'
 jq --arg cmd "$HOOK_CMD" '.hooks = (.hooks // {}) | .hooks.UserPromptSubmit = (.hooks.UserPromptSubmit // [{"hooks":[]}]) | .hooks.UserPromptSubmit[0].hooks += [{"type":"command","command":$cmd,"timeout":10}]' \
   "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/wiki-install-settings-tmp.json \
   && mv /tmp/wiki-install-settings-tmp.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
@@ -298,7 +341,7 @@ jq --arg cmd "$HOOK_CMD" '.hooks = (.hooks // {}) | .hooks.UserPromptSubmit = (.
 **Verify after merge:** confirm the literal `$CLAUDE_PROJECT_DIR` token survived (same B3 check):
 
 ```bash
-if grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/wiki-recall-prompt.sh' "$CLAUDE_PROJECT_DIR/.claude/settings.json"; then
+if grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh' "$CLAUDE_PROJECT_DIR/.claude/settings.json"; then
   echo "[wiki-install] Merged UserPromptSubmit hook entry into existing .claude/settings.json"
 else
   echo "[wiki-install] ABORT: Post-merge verification failed for UserPromptSubmit hook — settings.json may contain a hardcoded path. Restore your original settings.json from backup and re-run /wiki-install."
@@ -392,7 +435,7 @@ Synthesize a planning-intent prompt and pipe it through the recall hook. The hoo
 ```bash
 export CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR"
 RECALL_OUT=$(echo '{"session_id":"wiki-install-recall-test","prompt":"plan how to add a new feature"}' \
-  | "$CLAUDE_PROJECT_DIR/.claude/hooks/wiki-recall-prompt.sh" 2>&1)
+  | "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh" 2>&1)
 RECALL_EXIT=$?
 if [ -f "$CLAUDE_PROJECT_DIR/.claude/inbox/.hook-log" ] && tail -5 "$CLAUDE_PROJECT_DIR/.claude/inbox/.hook-log" | grep -q "wiki-install-recall-test recall:fire"; then
   if echo "$RECALL_OUT" | grep -q "Wiki recall"; then

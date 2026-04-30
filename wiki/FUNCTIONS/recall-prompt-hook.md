@@ -8,7 +8,7 @@
 
 ## Content
 
-**Path:** `.claude/hooks/wiki-recall-prompt.sh`
+**Path:** `.claude/hooks/recall-prompt.sh`
 **Trigger:** UserPromptSubmit
 
 **Behavior:**

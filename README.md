@@ -9,14 +9,17 @@ A drop-in `.claude/` scaffold that makes Claude Code auto-maintain an Obsidian-s
 
 ## Quick start
 
-1. Copy this repo's `.claude/` tree into your project.
-2. Restart Claude Code in your project.
-3. Run `/wiki-install`.
-4. Edit a file in a normal Claude turn — watch `wiki/inbox/_session.md` populate.
-5. Run `/wiki-digest` when you want filed notes under `wiki/` (also refreshes `wiki/topic-index.md`).
-6. Ask Claude to plan something — the recall hook will fire and consult the wiki automatically.
+1. In your target project, run `claude` and paste:
+   > Install the llm-code-wiki scaffold from `https://github.com/TajVirani/llm-code-wiki`.
+   > Follow the "Remote install — for Claude" section of its INSTALL.md exactly.
 
-Full instructions, prerequisites, and uninstall steps: see [INSTALL.md](./INSTALL.md).
+   Claude fetches the distribution manifest, copies the scaffold files, and runs the bootstrap inline.
+2. Restart Claude Code so `/wiki-digest` and `/wiki-recall` register as slash commands. (Hooks themselves work without restart.)
+3. Edit a file in a normal Claude turn — watch `wiki/inbox/_session.md` populate.
+4. Run `/wiki-digest` when you want filed notes under `wiki/` (also refreshes `wiki/topic-index.md`).
+5. Ask Claude to plan something — the recall hook will fire and consult the wiki automatically.
+
+Prefer to copy files yourself? See the **Manual install** section in [INSTALL.md](./INSTALL.md). Full prerequisites and uninstall steps are there too.
 
 ## What's in the box
 
@@ -28,7 +31,7 @@ Full instructions, prerequisites, and uninstall steps: see [INSTALL.md](./INSTAL
 - `.claude/agents/wiki-curator.md` — the curator sub-agent (read+write)
 - `.claude/agents/wiki-recall.md` — the recall sub-agent (read-only)
 - `.claude/hooks/inbox-stop.sh` — the Stop hook script (capture path)
-- `.claude/hooks/wiki-recall-prompt.sh` — the UserPromptSubmit hook script (recall path)
+- `.claude/hooks/recall-prompt.sh` — the UserPromptSubmit hook script (recall path)
 - `.claude/settings.json` — Stop + UserPromptSubmit hook registrations
 - `wiki/Rules.md` — starter wiki contract (generic — edit to fit your project)
 - `wiki/_templates/note.md` — canonical note template

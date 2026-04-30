@@ -60,54 +60,96 @@ fi
 
 # ---------------------------------------------------------------------------
 # Step 5 — Hard cap guard (D-03)
-# Tracks fires per "turn" (session_id + minute boundary).
-# Caps at 2 fires; resets automatically on a new turn.
+# Caps at 2 actual fires per minute (session_id + minute boundary). The
+# counter is read here and only incremented on the fire paths in Step 8 —
+# noops (turncount-pending, brainstorm windows that haven't matured) do not
+# consume the cap, so a long brainstorm can still reach the fallback fire.
 # ---------------------------------------------------------------------------
 TURN_KEY="${SESSION_ID}_$(date +%Y%m%d%H%M)"
 COUNTER_FILE="$CLAUDE_PROJECT_DIR/.claude/inbox/.fire-counter"
+CURRENT_FIRE_COUNT=0
 
 if [ -f "$COUNTER_FILE" ]; then
   STORED=$(cat "$COUNTER_FILE")
   STORED_KEY=$(echo "$STORED" | awk '{print $1}')
   STORED_COUNT=$(echo "$STORED" | awk '{print $2}')
-
   if [ "$STORED_KEY" = "$TURN_KEY" ]; then
-    if [ "${STORED_COUNT:-0}" -ge 2 ]; then
-      log_outcome "hard-cap"
-      exit 0
-    else
-      NEW_COUNT=$((STORED_COUNT + 1))
-      echo "$TURN_KEY $NEW_COUNT" > "$COUNTER_FILE"
-    fi
-  else
-    # New turn — reset counter to 1 (this is the first fire for this turn)
-    echo "$TURN_KEY 1" > "$COUNTER_FILE"
+    CURRENT_FIRE_COUNT="${STORED_COUNT:-0}"
   fi
-else
-  # First ever fire — create counter file
-  echo "$TURN_KEY 1" > "$COUNTER_FILE"
 fi
 
+if [ "$CURRENT_FIRE_COUNT" -ge 2 ]; then
+  log_outcome "hard-cap"
+  exit 0
+fi
+
+# Helper: bump fire counter (call only on actual fire paths).
+bump_fire_counter() {
+  local NEW_COUNT=$((CURRENT_FIRE_COUNT + 1))
+  echo "$TURN_KEY $NEW_COUNT" > "$COUNTER_FILE"
+}
+
 # ---------------------------------------------------------------------------
-# Step 6 — Transcript pre-filter (D-05)
-# If the transcript contains no Edit/Write/MultiEdit tool calls, this turn
-# produced no codebase artifacts — silently no-op.
+# Step 6 — Brainstorm-only turn counter (D-04b)
+# Increment a per-session counter that resets only on artifact-driven captures
+# (Step 7 below) or on brainstorm-fallback fires. Used to trigger context-scan
+# capture every N turns when no codebase artifacts have been produced.
+# Cadence: $LCW_BRAINSTORM_TURNS (default 10).
+# ---------------------------------------------------------------------------
+N="${LCW_BRAINSTORM_TURNS:-10}"
+case "$N" in
+  ''|*[!0-9]*) N=10 ;;
+esac
+[ "$N" -lt 1 ] && N=10
+
+TURN_COUNT_FILE="$CLAUDE_PROJECT_DIR/.claude/inbox/.turn-count"
+TURN_COUNT=0
+if [ -f "$TURN_COUNT_FILE" ]; then
+  STORED_TC=$(cat "$TURN_COUNT_FILE")
+  STORED_TC_KEY=$(echo "$STORED_TC" | awk '{print $1}')
+  STORED_TC_COUNT=$(echo "$STORED_TC" | awk '{print $2}')
+  if [ "$STORED_TC_KEY" = "$SESSION_ID" ]; then
+    TURN_COUNT="${STORED_TC_COUNT:-0}"
+  fi
+fi
+TURN_COUNT=$((TURN_COUNT + 1))
+echo "$SESSION_ID $TURN_COUNT" > "$TURN_COUNT_FILE"
+
+# ---------------------------------------------------------------------------
+# Step 7 — Transcript inspection: detect codebase artifacts (D-05)
 # ---------------------------------------------------------------------------
 TRANSCRIPT=$(echo "$INPUT" | grep -o '"transcript_path"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
-
+HAS_ARTIFACTS=0
 if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
-  if ! grep -q '"name"[[:space:]]*:[[:space:]]*"\(Edit\|Write\|MultiEdit\)"' "$TRANSCRIPT" 2>/dev/null; then
-    log_outcome "noop"
-    exit 0
+  if grep -q '"name"[[:space:]]*:[[:space:]]*"\(Edit\|Write\|MultiEdit\)"' "$TRANSCRIPT" 2>/dev/null; then
+    HAS_ARTIFACTS=1
   fi
 fi
 
 # ---------------------------------------------------------------------------
-# Step 7 — Emit decision:block + reason (D-10)
-# The reason text nudges Claude to run the inbox-update skill (D-06).
-# "Skip if only wiki/* files changed" guards against digest cascade (D-08).
-# Reason is under 200 chars (verified: ~151 chars).
+# Step 8 — Branch: normal capture / brainstorm-fallback / pending no-op (D-10)
 # ---------------------------------------------------------------------------
-REASON="Update wiki/inbox/_session.md per .claude/skills/inbox-update/SKILL.md for this turn's work. Skip if only wiki/* files changed."
-printf '{"decision":"block","reason":"%s"}\n' "$REASON"
-log_outcome "fire"
+
+if [ "$HAS_ARTIFACTS" -eq 1 ]; then
+  # Normal capture — reset brainstorm counter so the next window is fresh.
+  echo "$SESSION_ID 0" > "$TURN_COUNT_FILE"
+  bump_fire_counter
+  REASON="Update wiki/inbox/_session.md per .claude/skills/inbox-update/SKILL.md for this turn's work. Skip if only wiki/* files changed."
+  printf '{"decision":"block","reason":"%s"}\n' "$REASON"
+  log_outcome "fire turncount-reset-on-artifact"
+  exit 0
+fi
+
+if [ "$TURN_COUNT" -ge "$N" ]; then
+  # Brainstorm-fallback — reset counter and ask Claude to scan recent context.
+  echo "$SESSION_ID 0" > "$TURN_COUNT_FILE"
+  bump_fire_counter
+  REASON="Brainstorm-fallback (no codebase artifacts in last $N turns): review the recent conversation for design decisions, requirements, named patterns, file paths agreed on, or trade-offs resolved that should be recorded in wiki/inbox/_session.md. Follow the Brainstorm-fallback mode section of .claude/skills/inbox-update/SKILL.md. Skip trivial chit-chat."
+  printf '{"decision":"block","reason":"%s"}\n' "$REASON"
+  log_outcome "turncount-fire $TURN_COUNT/$N"
+  exit 0
+fi
+
+# Pending no-op — counter incremented, no artifacts, threshold not reached.
+log_outcome "turncount-pending $TURN_COUNT/$N"
+exit 0

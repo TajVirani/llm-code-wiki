@@ -1,6 +1,6 @@
 ---
 name: inbox-update
-description: Update wiki/inbox/_session.md to reflect the current state of codebase artifacts after this turn. Add new entries, update changed ones, prune deleted ones. No-op if this turn produced no codebase artifact.
+description: Update wiki/inbox/_session.md to reflect the current state of codebase artifacts after this turn. Add new entries, update changed ones, prune deleted ones. No-op if this turn produced no codebase artifact — UNLESS the invocation reason starts with "Brainstorm-fallback", in which case scan the recent conversation for design decisions worth recording instead of tool calls.
 allowed-tools: Read, Edit, Write, Grep
 ---
 
@@ -40,6 +40,42 @@ the new access token plus its expiry; throws TokenRevokedError if the refresh to
 Before reading the inbox or making any edits, build a scratch-list from this turn's tool calls (see next section).
 
 If the scratch-list is empty — the turn produced no Edit/Write/MultiEdit tool calls, no Bash commands that created or deleted files, and no explicit user request to record something — **STOP. Write nothing. Return immediately.** Do not re-read the inbox, do not run grep, do not write a "no changes" line. The turn was a no-op relative to the inbox. This fast path costs zero file I/O.
+
+**Exception — Brainstorm-fallback mode.** If the invocation reason from the Stop hook begins with `Brainstorm-fallback`, the no-op guard does NOT apply. This mode is *expected* to have an empty scratch-list. Skip the guard, skip the scratch-list protocol below, and follow the Brainstorm-fallback mode section instead.
+
+## Brainstorm-fallback mode (D-04b)
+
+This mode fires every N turns (default 10, override via `$LCW_BRAINSTORM_TURNS` in `.claude/hooks/inbox-stop.sh`) when no codebase artifacts have been produced in the window. Its job is to rescue design decisions from a brainstorm before they fall on the floor.
+
+**Source material.** Use the conversation since the last `_session.md` write (or roughly the last N user-assistant exchanges). You already have this in your context — do not re-read the transcript file.
+
+**What to capture (one entry per item).** Things that would not be derivable from the current code on their own:
+- Explicit design decisions ("we'll use approach X over Y because Z")
+- Agreed file paths, module names, or interface shapes that don't yet exist
+- Named patterns or conventions the user committed to (e.g., kill-switch naming, hook-log prefixes)
+- Concrete trade-offs resolved (the *why* behind a choice, not just the choice)
+- Requirements or constraints surfaced ("must default to N=10 with env override")
+- Open questions the user explicitly flagged for later
+
+**What to skip.** Do not capture:
+- Exploratory speculation that did not converge ("we could maybe…")
+- Restatements of code that already exists in the repo
+- Meta-talk ("I'll go read the file", "let me check")
+- Plan-mode summaries (already filed elsewhere)
+- Process chatter ("approved", "looks good")
+
+**Cap.** ≤5 new entries per fire. If nothing in the window qualifies, write nothing. Do not invent entries to hit a quota.
+
+**Format.** Use the standard handle line + body format from the Entry format section above, with `CATEGORY = RESEARCH` and `path = —` (em-dash, since these are non-file artifacts). Tag with `#decision`, `#brainstorm`, plus 1–2 topical tags. Example:
+
+```
+@ RESEARCH::brainstorm-fallback-cadence  •  —  •  #decision #brainstorm #hooks
+Stop hook fires inbox-update every 10 brainstorm-only turns by default; override via $LCW_BRAINSTORM_TURNS. Counter resets on any artifact-driven capture so the next window starts fresh after a code change.
+```
+
+**Dedup.** Before writing each entry, run `grep -n "^@ RESEARCH::<slug>" wiki/inbox/_session.md`. If the slug already exists, either update the body (if the decision evolved) or skip (if it's a restatement). Do not append duplicates.
+
+**Self-creation guard still applies.** If `wiki/inbox/_session.md` does not exist, create it with the template from the Self-creation guard section before writing entries.
 
 ## Scratch-list protocol (D-01)
 

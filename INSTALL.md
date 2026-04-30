@@ -17,7 +17,78 @@ Claude Code skill + hook scaffolding that makes Claude auto-maintain an Obsidian
 - **`ripgrep`** (`rg`) — required by Claude Code's `Glob` and `Grep` tools, which the wiki-curator and wiki-recall sub-agents use during `/wiki-digest` and `/wiki-recall`. Install via `brew install ripgrep` (macOS), `apt-get install ripgrep` (Ubuntu/Debian/WSL), or [official downloads](https://github.com/BurntSushi/ripgrep#installation). Without it, agents fall back to the skill body's bash-injected `find` / `grep` listings (correct for digest's tree-listing and post-write audit) but the curator's same-concept conflict detection and the recall agent's keyword grep both degrade to whatever the skill body produces — so install `rg` for full functionality.
 - **`CLAUDE_CODE_FORK_SUBAGENT=1`** — environment variable for the `/wiki-digest` sub-agent fork path. Without it, the wiki-digest skill falls back to inline execution per `.claude/skills/wiki-digest/reference/non-fork-fallback.md`. Set via shell profile (`export CLAUDE_CODE_FORK_SUBAGENT=1`).
 
-## Installation
+## Remote install (recommended)
+
+In a target project, start Claude Code and paste this into the prompt:
+
+> Install the llm-code-wiki scaffold from `https://github.com/TajVirani/llm-code-wiki`.
+> Follow the "Remote install — for Claude" section of its INSTALL.md exactly.
+
+Claude will fetch the distribution manifest, copy the scaffold files into your project, and run the bootstrap inline. Then restart Claude Code so `/wiki-digest` and `/wiki-recall` register as slash commands. Hooks themselves work without restart.
+
+The full instructions Claude follows are below — you don't need to read them; the line above is enough.
+
+### Remote install — for Claude
+
+You are installing the llm-code-wiki scaffold into the current project (`$CLAUDE_PROJECT_DIR`). Execute these steps in order. Use the Bash tool for `curl` and shell work, and the Write tool when the existing wiki-install steps call for it.
+
+**Important:** the `/wiki-install` slash command is NOT registered yet (Claude Code only registers skills at session startup). Step 5 below has you read the just-fetched `SKILL.md` file and execute its steps directly — that's the supported way to bootstrap on the first run.
+
+1. **Determine the source URL.** Default raw base:
+   ```
+   RAW_BASE=https://raw.githubusercontent.com/TajVirani/llm-code-wiki/main
+   ```
+   If the user named a fork (`https://github.com/<OWNER>/<REPO>`) or non-`main` branch, substitute `<OWNER>/<REPO>/<BRANCH>` accordingly.
+
+2. **Fetch the manifest.**
+   ```bash
+   curl -fsSL "$RAW_BASE/dist-manifest.txt" -o /tmp/lcw-manifest.txt
+   test -s /tmp/lcw-manifest.txt || { echo "[lcw-install] ABORT: manifest empty or 404 from $RAW_BASE/dist-manifest.txt"; exit 1; }
+   ```
+
+3. **Fetch each listed file.** Iterate over non-blank, non-`#` lines:
+   ```bash
+   while IFS= read -r path; do
+     case "$path" in ''|\#*) continue ;; esac
+     dest="$CLAUDE_PROJECT_DIR/$path"
+     case "$path" in
+       wiki/Rules.md|wiki/_templates/note.md)
+         if [ -e "$dest" ]; then
+           echo "[lcw-install] skip-if-exists: $path (user content preserved)"
+           continue
+         fi
+         ;;
+     esac
+     mkdir -p "$(dirname "$dest")"
+     curl -fsSL "$RAW_BASE/$path" -o "$dest" \
+       && echo "[lcw-install] fetched: $path" \
+       || { echo "[lcw-install] ABORT: failed to fetch $path"; exit 1; }
+   done < /tmp/lcw-manifest.txt
+   ```
+
+4. **Mark hooks executable.**
+   ```bash
+   chmod +x "$CLAUDE_PROJECT_DIR/.claude/hooks/inbox-stop.sh"
+   chmod +x "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh"
+   ```
+
+5. **Run the bootstrap inline.** Read `$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/SKILL.md` and execute every step exactly as written, top to bottom (Step 0 → Step 7). Use the Bash tool for bash blocks and Write/Edit for file operations the skill specifies. Notes:
+   - Step 0 precondition check should pass — the manifest fetch in step 3 above placed every required file.
+   - Steps 1–4b will print "already exists, skipping" for the wiki seed files (the manifest pre-placed them with skip-if-exists semantics). That's correct.
+   - Steps 5/5b/6/7 do the real work: settings.json merge, CLAUDE.md append, smoke tests.
+   - Do NOT skip Step 7's smoke tests — they're the install verification.
+
+6. **Print a final summary.** Combine the manifest fetch results from step 3 with the install summary block printed by Step 7 of the bootstrap. Make it easy for the user to scan what landed where.
+
+7. **Tell the user:**
+   > Install complete. Hooks are live (capture + recall fire on the next turn).
+   > Restart Claude Code so `/wiki-digest`, `/wiki-recall`, and `/wiki-install` register
+   > as slash commands. After restart, edit a file → `wiki/inbox/_session.md` populates.
+   > Ask Claude to plan something → recall fires. Run `/wiki-digest` at a review checkpoint.
+
+## Manual install (alternative)
+
+If you'd rather copy the files yourself (e.g., for offline installs, or to vendor a pinned version):
 
 1. **Copy the `.claude/` tree** from this repo into your target project — plugin install, marketplace, manual copy, or symlink. Method is your choice; the `.claude/` directory is the distribution unit. It contains:
    - `.claude/skills/wiki-digest/` — the `/wiki-digest` slash command (filing path)
@@ -28,7 +99,13 @@ Claude Code skill + hook scaffolding that makes Claude auto-maintain an Obsidian
    - `.claude/agents/wiki-curator.md` — the curator sub-agent (read+write)
    - `.claude/agents/wiki-recall.md` — the recall sub-agent (read-only)
    - `.claude/hooks/inbox-stop.sh` — the Stop hook script (capture path)
-   - `.claude/hooks/wiki-recall-prompt.sh` — the UserPromptSubmit hook script (recall path)
+   - `.claude/hooks/recall-prompt.sh` — the UserPromptSubmit hook script (recall path)
+
+   Also copy these `wiki/` seed files (skip if you're installing into a project that already has them):
+   - `wiki/Rules.md`
+   - `wiki/_templates/note.md`
+
+   The authoritative list is `dist-manifest.txt` at the repo root. Do NOT copy any other contents of `wiki/` — those are the source repo's own dogfood notes, not part of the scaffold. `/wiki-install` will create `wiki/topic-index.md` from a canonical empty seed during Step 4b.
 
 2. **Restart Claude Code** in your project directory. New top-level `.claude/skills/` directories require a session restart to register.
 

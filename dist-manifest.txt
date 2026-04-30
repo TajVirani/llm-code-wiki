@@ -1,0 +1,36 @@
+# llm-code-wiki distribution manifest
+# Each line is a repo-relative path that must be fetched into the target project
+# during a remote install. Lines starting with `#` and blank lines are ignored.
+#
+# Hook scripts (.sh) require `chmod +x` after fetch — see INSTALL.md "Remote install".
+# `wiki/` seed files are templates the user customizes; the remote-install fetcher
+# must skip-if-exists for those paths to preserve user content.
+#
+# `.claude/settings.json` is intentionally NOT in this manifest. The remote-install
+# flow delegates settings.json merge to .claude/skills/wiki-install/SKILL.md (Step 5/5b),
+# which knows how to merge into an existing settings.json without clobbering unrelated
+# permissions/env entries.
+
+# Skills
+.claude/skills/inbox-update/SKILL.md
+.claude/skills/wiki-digest/SKILL.md
+.claude/skills/wiki-digest/reference/non-fork-fallback.md
+.claude/skills/wiki-install/SKILL.md
+.claude/skills/wiki-install/SETTINGS-SNIPPET.md
+.claude/skills/wiki-recall/SKILL.md
+.claude/skills/wiki-rules/SKILL.md
+
+# Agents
+.claude/agents/wiki-curator.md
+.claude/agents/wiki-recall.md
+
+# Hooks (chmod +x after fetch)
+.claude/hooks/inbox-stop.sh
+.claude/hooks/recall-prompt.sh
+
+# Wiki seeds (skip-if-exists at fetch time; /wiki-install also won't overwrite).
+# Note: wiki/topic-index.md is intentionally NOT shipped here — this repo's copy is
+# populated with dogfood bullets, not the canonical empty seed. /wiki-install Step 4b
+# creates the empty seed inline.
+wiki/Rules.md
+wiki/_templates/note.md

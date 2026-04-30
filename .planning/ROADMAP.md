@@ -103,7 +103,11 @@ Plans:
   3. The install README documents required environment (`CLAUDE_CODE_FORK_SUBAGENT=1` for digest sub-agent forking with non-fork fallback path), known interactions (`disableSkillShellExecution` breaks the digest skill's bash injection), the Q1 resolution and any first-run restart requirement, and the explicit anti-features (no real-time sync, no auto-digest, no backfill, no `Rules.md` modification, no wiki-codebase reconciliation in v1).
   4. After install in a fresh repo, the first work-bearing turn updates `wiki/inbox/_session.md` correctly without manual intervention, and a subsequent `/digest` files notes per `Rules.md` against the consumer's existing wiki structure.
 
-**Plans**: TBD
+**Plans**: 2 plans (2 waves)
+
+Plans:
+- [ ] 04-01-PLAN.md — Author /wiki-install skill (.claude/skills/wiki-install/SKILL.md) + jq fallback snippet
+- [ ] 04-02-PLAN.md — Sandbox validation, wiki/README.md authoring, human-verify acceptance gate
 
 ## Progress
 
@@ -112,7 +116,7 @@ Plans:
 | 1. Foundation + Curator | 4/4 | Complete | 2026-04-28 |
 | 2. In-Session Inbox Skill | 2/2 | Complete | 2026-04-28 |
 | 3. Stop Hook Automation | 0/2 | In progress | — |
-| 4. Install & Distribution | 0/? | Not started | — |
+| 4. Install & Distribution | 0/2 | Not started | — |
 
 ## Coverage
 

@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: "2026-04-28T00:00:00Z"
+last_updated: "2026-04-30T02:25:22Z"
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 40
+  completed_phases: 2
+  total_plans: 7
+  completed_plans: 7
+  percent: 55
 ---
 
 # State: llm-code-wiki
 
-**Last Updated:** 2026-04-28 (02-02 complete — Phase 2 CLOSED)
+**Last Updated:** 2026-04-30 (03-01 complete — Phase 3 plan 01 done)
 
 ## Project Reference
 
@@ -26,20 +26,20 @@ progress:
 
 ## Current Position
 
-Phase: 3 (Stop Hook Automation) — NOT STARTED
+Phase: 3 (Stop Hook Automation) — IN PROGRESS (03-01 complete)
 | Field | Value |
 |-------|-------|
-| **Phase** | Phase 2 COMPLETE — Phase 3 next |
-| **Plan** | 02-02 COMPLETE |
+| **Phase** | Phase 3 — 03-01 complete |
+| **Plan** | 03-01 COMPLETE |
 | **Status** | In progress |
-| **Progress** | `[ ████████░░░░░░░░░░░░ ] 40%` |
+| **Progress** | `[ ███████████░░░░░░░░░ ] 55%` |
 | **Started** | 2026-04-28 (project initialization) |
 
 ## Roadmap At-a-Glance
 
 - [x] **Phase 1: Foundation + Curator** — COMPLETE
 - [x] **Phase 2: In-Session Inbox Skill** — COMPLETE
-- [ ] **Phase 3: Stop Hook Automation** ← *next*
+- [ ] **Phase 3: Stop Hook Automation** ← *in progress (03-01 done)*
 - [ ] Phase 4: Install & Distribution
 
 ## Performance Metrics
@@ -47,15 +47,16 @@ Phase: 3 (Stop Hook Automation) — NOT STARTED
 | Metric | Value |
 |--------|-------|
 | Phases complete | 2 / 4 |
-| Plans complete | 6 / 6 (Phases 1+2) |
+| Plans complete | 7 / 7 (Phases 1+2+3-01) |
 | v1 Requirements mapped | 26 / 26 ✓ |
-| v1 Requirements validated | 22 / 26 (Phases 1+2 reqs: 15 DIGS + 7 CAPT/LIFE) |
+| v1 Requirements validated | 23 / 26 (CAPT-01 now validated) |
 | 01-01 duration | ~20 min (continuation after checkpoint) |
 | 01-02 duration | ~7 min |
 | 01-03 duration | ~12 min |
 | 01-04 duration | ~15 min (acceptance gate — all 15 Phase 1 reqs) |
 | 02-01 duration | ~10 min (inbox-update skill + inbox reset) |
 | 02-02 duration | ~8 min (CAPT-04 fixture loop — human checkpoint approved) |
+| 03-01 duration | ~3 min (Stop hook script + settings.json + smoke tests) |
 
 ## Accumulated Context
 
@@ -77,9 +78,17 @@ Phase: 3 (Stop Hook Automation) — NOT STARTED
 - **CAPT-04 validated PASS** — 1+1-then-deleted fixture loop produces zero inbox entries and zero filed notes. Phase 2 release blocker cleared.
 - **Digest simulation (not live run)** — At the CAPT-04 checkpoint, inbox was already empty; digest run was not needed. DIGS-12 no-op path confirmed via skill body analysis.
 
+### Key Decisions Added in Phase 3 (03-01)
+
+- **Stop hook registration: Stop only, not SubagentStop** — prevents digest sub-agent from thrashing inbox; Pitfall 1 fully mitigated.
+- **Loop-protection trifecta implemented** — stop_hook_active guard (D-01), .disabled kill switch (D-02), 2-fire hard cap keyed by session+minute (D-03); all smoke-tested and verified.
+- **Heartbeat fires unconditionally before guards** — .hook-log entry exists even for silent exits; Pitfall 4 mitigated.
+- **Transcript pre-filter via JSONL grep** — no-op turns (no Edit/Write/MultiEdit) exit silently; Pitfall 15 mitigated.
+- **CAPT-01 validated** — Stop hook + settings.json installed and all automated checks pass.
+
 ### Pending Decisions
 
-(None — all Phase 1 and Phase 2 decisions resolved)
+(None — all Phase 1, Phase 2, and Phase 3 (03-01) decisions resolved)
 
 ### Promoted Recommendations from Research
 
@@ -106,11 +115,11 @@ Phase: 3 (Stop Hook Automation) — NOT STARTED
 
 ### Last Session Summary
 
-2026-04-28: Completed plan 02-02. CAPT-04 1+1-then-deleted fixture loop — created `tests/fixtures/math.ts` with `add(a,b)` (Turn 1), deleted it (Turn 2). Inbox pruned to zero entries by /inbox-update prune-first reconcile. All 13 automated checks passed. Human checkpoint approved. Phase 2 CLOSED — all 7 CAPT/LIFE requirements satisfied.
+2026-04-30: Completed plan 03-01. Authored `.claude/hooks/inbox-stop.sh` (108 lines, full loop-protection trifecta + heartbeat + transcript pre-filter + decision:block). Created `.claude/settings.json` registering Stop hook only (no SubagentStop). All 4 pipe-stdin smoke tests passed. All 12 automated checks passed. CAPT-01 validated.
 
 ### Next Action
 
-Plan and execute Phase 3 — Stop Hook Automation (CAPT-01). Use Q1-resolved mechanism: `decision:"block" + reason` exclusively (additionalContext is silently dropped on Stop hooks — confirmed live 2026-04-29).
+Phase 3 has 1 plan (03-01). Phase 3 is now complete pending any acceptance verification. Continue to Phase 4 — Install & Distribution.
 
 ### Resume Instructions
 

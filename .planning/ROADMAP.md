@@ -61,8 +61,8 @@ Plans:
 **Plans**: 2 plans (2 waves)
 
 Plans:
-- [ ] 02-01-PLAN.md — inbox-update skill body (all D-01..D-10 decisions) + inbox reset to zero-entry state
-- [ ] 02-02-PLAN.md — Acceptance gate: 1+1-then-deleted fixture loop (CAPT-04 release blocker)
+- [x] 02-01-PLAN.md — inbox-update skill body (all D-01..D-10 decisions) + inbox reset to zero-entry state
+- [x] 02-02-PLAN.md — Acceptance gate: 1+1-then-deleted fixture loop (CAPT-04 release blocker)
 
 ---
 
@@ -105,8 +105,8 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Curator | 2/4 | In progress | — |
-| 2. In-Session Inbox Skill | 0/2 | Not started | — |
+| 1. Foundation + Curator | 4/4 | Complete | 2026-04-28 |
+| 2. In-Session Inbox Skill | 2/2 | Complete | 2026-04-28 |
 | 3. Stop Hook Automation | 0/? | Not started | — |
 | 4. Install & Distribution | 0/? | Not started | — |
 

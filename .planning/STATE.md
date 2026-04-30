@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: "2026-04-29T12:42:00Z"
+last_updated: "2026-04-28T00:00:00Z"
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_phases: 1
+  total_plans: 6
+  completed_plans: 6
+  percent: 40
 ---
 
 # State: llm-code-wiki
 
-**Last Updated:** 2026-04-29 (01-03 complete)
+**Last Updated:** 2026-04-28 (02-02 complete — Phase 2 CLOSED)
 
 ## Project Reference
 
@@ -22,38 +22,40 @@ progress:
 
 **Core Value:** Code documentation stays current and coherent without manual upkeep — including correctly pruning entries when code is deleted or superseded within the same session.
 
-**Current Focus:** Phase 1 — Foundation + Curator
+**Current Focus:** Phase 3 — Stop Hook Automation
 
 ## Current Position
 
-Phase: 1 (Foundation + Curator) — EXECUTING
-Plan: 2 of 4
+Phase: 3 (Stop Hook Automation) — NOT STARTED
 | Field | Value |
 |-------|-------|
-| **Phase** | 1 — Foundation + Curator |
-| **Plan** | 01-03 COMPLETE — 01-04 next |
+| **Phase** | Phase 2 COMPLETE — Phase 3 next |
+| **Plan** | 02-02 COMPLETE |
 | **Status** | In progress |
-| **Progress** | `[ ████████████░░░░░░░░ ] 75%` |
+| **Progress** | `[ ████████░░░░░░░░░░░░ ] 40%` |
 | **Started** | 2026-04-28 (project initialization) |
 
 ## Roadmap At-a-Glance
 
-- [ ] **Phase 1: Foundation + Curator** ← *current*
-- [ ] Phase 2: In-Session Inbox Skill
-- [ ] Phase 3: Stop Hook Automation
+- [x] **Phase 1: Foundation + Curator** — COMPLETE
+- [x] **Phase 2: In-Session Inbox Skill** — COMPLETE
+- [ ] **Phase 3: Stop Hook Automation** ← *next*
 - [ ] Phase 4: Install & Distribution
 
 ## Performance Metrics
 
 | Metric | Value |
 |--------|-------|
-| Phases complete | 0 / 4 |
-| Plans complete | 3 / 4 |
+| Phases complete | 2 / 4 |
+| Plans complete | 6 / 6 (Phases 1+2) |
 | v1 Requirements mapped | 26 / 26 ✓ |
-| v1 Requirements validated | 0 / 26 |
+| v1 Requirements validated | 22 / 26 (Phases 1+2 reqs: 15 DIGS + 7 CAPT/LIFE) |
 | 01-01 duration | ~20 min (continuation after checkpoint) |
 | 01-02 duration | ~7 min |
 | 01-03 duration | ~12 min |
+| 01-04 duration | ~15 min (acceptance gate — all 15 Phase 1 reqs) |
+| 02-01 duration | ~10 min (inbox-update skill + inbox reset) |
+| 02-02 duration | ~8 min (CAPT-04 fixture loop — human checkpoint approved) |
 
 ## Accumulated Context
 
@@ -70,9 +72,14 @@ Plan: 2 of 4
 - **Post-write audit grep exclusion:** Step 5 explicitly excludes `wiki/inbox/_archive` so old archived `[[X]]` references don't pollute the unresolved-link report (T-03-05 mitigation).
 - **Non-fork fallback (B4):** References agent NAME `wiki-curator` only; says "follow whatever protocol the curator file defines." No step count or heading cross-references — wave-2 parallelism preserved.
 
+### Key Decisions Added in Phase 2
+
+- **CAPT-04 validated PASS** — 1+1-then-deleted fixture loop produces zero inbox entries and zero filed notes. Phase 2 release blocker cleared.
+- **Digest simulation (not live run)** — At the CAPT-04 checkpoint, inbox was already empty; digest run was not needed. DIGS-12 no-op path confirmed via skill body analysis.
+
 ### Pending Decisions
 
-(None — all Phase 1 decisions resolved)
+(None — all Phase 1 and Phase 2 decisions resolved)
 
 ### Promoted Recommendations from Research
 
@@ -99,11 +106,11 @@ Plan: 2 of 4
 
 ### Last Session Summary
 
-2026-04-29: Completed plan 01-03. digest SKILL.md (116 lines) authored — archive-before-write (LIFE-02/LIFE-03/D-14), fork into wiki-curator (D-13), post-write link audit (DIGS-11), empty-inbox no-op (DIGS-12). Non-fork fallback reference created per B4 (references agent NAME only, no step count). All automated verification checks passed.
+2026-04-28: Completed plan 02-02. CAPT-04 1+1-then-deleted fixture loop — created `tests/fixtures/math.ts` with `add(a,b)` (Turn 1), deleted it (Turn 2). Inbox pruned to zero entries by /inbox-update prune-first reconcile. All 13 automated checks passed. Human checkpoint approved. Phase 2 CLOSED — all 7 CAPT/LIFE requirements satisfied.
 
 ### Next Action
 
-Execute plan 01-04 (fixture acceptance run — validate wiki-curator against tests/fixtures/_session-fixture.md).
+Plan and execute Phase 3 — Stop Hook Automation (CAPT-01). Use Q1-resolved mechanism: `decision:"block" + reason` exclusively (additionalContext is silently dropped on Stop hooks — confirmed live 2026-04-29).
 
 ### Resume Instructions
 

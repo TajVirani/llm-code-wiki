@@ -8,12 +8,12 @@
 ### Capture (in-session inbox upkeep)
 
 - [ ] **CAPT-01**: After each Claude assistant turn, an inbox-update prompt is delivered to Claude via a Stop hook
-- [ ] **CAPT-02**: An `inbox-update` skill defines how Claude maintains the rolling inbox — atomic flat entries, state-of-the-world semantics, no chronological logging
-- [ ] **CAPT-03**: Inbox entries use a stable, greppable handle convention so Claude can locate-and-prune by target rather than by prose match
-- [ ] **CAPT-04**: When code is removed or superseded within a session, the corresponding inbox entry is removed in the same turn — the "1+1-then-deleted" case must produce zero filed notes after digest
-- [ ] **CAPT-05**: A turn that produced no codebase artifact writes nothing to the inbox; the update prompt is cheap enough to run every turn without ballooning per-turn token cost
-- [ ] **CAPT-06**: Inbox entries are evidence-grounded — every entry corresponds to an Edit/Write tool call from that turn or an explicit user request (no hallucinated entries)
-- [ ] **CAPT-07**: The inbox-update skill explicitly frames the inbox as a derived view of the codebase (codebase is ground truth), so Claude does not push back on user code edits citing inbox state
+- [x] **CAPT-02**: An `inbox-update` skill defines how Claude maintains the rolling inbox — atomic flat entries, state-of-the-world semantics, no chronological logging
+- [x] **CAPT-03**: Inbox entries use a stable, greppable handle convention so Claude can locate-and-prune by target rather than by prose match
+- [x] **CAPT-04**: When code is removed or superseded within a session, the corresponding inbox entry is removed in the same turn — the "1+1-then-deleted" case must produce zero filed notes after digest
+- [x] **CAPT-05**: A turn that produced no codebase artifact writes nothing to the inbox; the update prompt is cheap enough to run every turn without ballooning per-turn token cost
+- [x] **CAPT-06**: Inbox entries are evidence-grounded — every entry corresponds to an Edit/Write tool call from that turn or an explicit user request (no hallucinated entries)
+- [x] **CAPT-07**: The inbox-update skill explicitly frames the inbox as a derived view of the codebase (codebase is ground truth), so Claude does not push back on user code edits citing inbox state
 
 ### Digest (consolidation into wiki)
 
@@ -33,7 +33,7 @@
 
 ### Lifecycle
 
-- [ ] **LIFE-01**: One rolling inbox file per project, located at `wiki/inbox/_session.md` (leading-underscore convention parallels `_templates/` and respects `Rules.md` §9)
+- [x] **LIFE-01**: One rolling inbox file per project, located at `wiki/inbox/_session.md` (leading-underscore convention parallels `_templates/` and respects `Rules.md` §9)
 - [ ] **LIFE-02**: On digest, the inbox is archived (timestamped) before notes are written, then truncated for a fresh start
 - [ ] **LIFE-03**: Archive-before-write ordering ensures a crashed mid-write does not lose entries
 

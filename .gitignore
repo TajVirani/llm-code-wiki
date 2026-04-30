@@ -1,0 +1,10 @@
+# Per-developer Claude Code settings — never commit
+.claude/settings.local.json
+
+# Stop hook runtime state — append-only logs and counters
+.claude/inbox/.hook-log
+.claude/inbox/.fire-counter
+.claude/inbox/.disabled
+
+# Live session inbox — derived view, regenerated each session by inbox-update skill
+wiki/inbox/_session.md

@@ -5,6 +5,11 @@
 # transcript pre-filter (D-05), and decision:block + reason delivery (D-10).
 set -euo pipefail
 
+# Ensure runtime state dir exists (heartbeat log, fire counter, kill switch).
+# Idempotent; cheap; required because wiki-install does not pre-create this dir
+# and the heartbeat log writes via `>>` which would fail without it.
+mkdir -p "$CLAUDE_PROJECT_DIR/.claude/inbox"
+
 # ---------------------------------------------------------------------------
 # Step 1 — Read stdin (the Stop event JSON from Claude Code)
 # ---------------------------------------------------------------------------

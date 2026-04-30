@@ -1,12 +1,12 @@
 # Digest non-fork fallback
 
-**When this applies:** the consumer's Claude Code does not have `CLAUDE_CODE_FORK_SUBAGENT=1` set, OR the local Claude Code version does not support `context: fork` (experimental as of v2.1.117 per research/STACK.md).
+**When this applies:** the consumer's Claude Code does not have `CLAUDE_CODE_FORK_SUBAGENT=1` set, OR the local Claude Code version does not support `context: fork` (experimental in current Claude Code).
 
 **Symptom:** when the user runs `/digest`, the skill body executes in the parent session instead of forking into a fresh context. This pollutes the parent context with the inbox + wiki tree + Rules.md but otherwise still works.
 
 ## Procedure
 
-1. The digest skill body's primary path is `context: fork` + `agent: wiki-curator` (the agent named `wiki-curator` per CONTEXT.md D-13). If forking is unavailable, the skill body still runs — the current Claude in the parent session reads the body and executes it.
+1. The digest skill body's primary path is `context: fork` + `agent: wiki-curator`. If forking is unavailable, the skill body still runs — the current Claude in the parent session reads the body and executes it.
 
 2. To preserve the curator's behavior without true context isolation, the parent Claude must:
    - Treat the wiki-curator system prompt at `.claude/agents/wiki-curator.md` as authoritative for this run. Read that file fresh at fallback time.
@@ -36,8 +36,3 @@ fi
 
 The warning is informational only — the digest still proceeds.
 
-## Reference
-
-- D-13 in `.planning/phases/01-foundation-curator/01-CONTEXT.md` (canonical agent name + fallback semantics)
-- "Version Compatibility" table in `.planning/research/STACK.md`
-- "Failure Modes T8" in `.planning/research/ARCHITECTURE.md`

@@ -9,9 +9,9 @@ skills:
 
 # Wiki curator
 
-You are the wiki-curator subagent. You receive an inbox content payload (typically from `wiki/inbox/_session.md` or a fixture under `tests/fixtures/`) plus a wiki tree listing plus the contents of `wiki/Rules.md` (loaded by the wiki-rules skill at startup). Your job: produce a routing plan, validate it against Rules.md, then apply it.
+You are the wiki-curator subagent. You receive an inbox content payload (typically from `wiki/inbox/_session.md` or an alternative inbox path passed as an argument) plus a wiki tree listing plus the contents of `wiki/Rules.md` (loaded by the wiki-rules skill at startup). Your job: produce a routing plan, validate it against Rules.md, then apply it.
 
-Operate only inside `wiki/`. Never touch `.claude/`, `src/`, `.planning/`, `tests/`, or any path outside `wiki/`. The two paths inside `wiki/` you may NEVER write to are `wiki/Rules.md` (the contract — DIGS-13, D-16) and `wiki/_templates/` (the schema — Rules.md §9).
+Operate only inside `wiki/`. Never touch any path outside `wiki/`. The two paths inside `wiki/` you may NEVER write to are `wiki/Rules.md` (the contract — DIGS-13, D-16) and `wiki/_templates/` (the schema — Rules.md §9).
 
 ## Protocol
 
@@ -34,7 +34,7 @@ For each entry:
 ### Step 3 — Detect same-concept conflicts (DIGS-09, D-04)
 
 For each entry's slug, search the wiki index from Step 1 using THREE signals (Pattern: filename + title + tag overlap; never use semantic similarity / embeddings — that's anti-feature A10):
-1. Filename match: kebab-case slug equality or near-equality (e.g., `vorp-batch-processing` matches `vorp-batch-processing.md`).
+1. Filename match: kebab-case slug equality or near-equality (e.g., `auth-token-refresh` matches `auth-token-refresh.md`).
 2. Title match: read the H1 of any candidate file; compare to the entry's slug-as-title.
 3. Tag overlap: 2+ shared tags between the entry's `#tags` and the candidate note's `**Tags**:` line.
 

@@ -30,9 +30,9 @@ Rules:
 Worked example:
 
 ```
-@ FUNCTIONS::compute-replacement-level  •  src/lib/vorp/replacement.ts  •  #function #vorp #math
-Computes the replacement-level threshold for a given position by sorting eligible players descending
-and taking the value at index = league_size * roster_slots[position]. Returns NaN if pool < slot count.
+@ FUNCTIONS::auth-token-refresh  •  src/lib/auth/refresh.ts  •  #function #auth #session
+Refreshes an expired access token by exchanging the stored refresh token at /oauth/token. Returns
+the new access token plus its expiry; throws TokenRevokedError if the refresh token is no longer valid.
 ```
 
 ## No-op guard — check FIRST (D-09)
@@ -79,7 +79,7 @@ Read `wiki/inbox/_session.md`. For each item on the scratch-list:
 2. If found: replace the body paragraph with a present-tense description of the current state. Do not append — replace.
 3. If not found: append a new entry at the end of the file (below the last entry, with a blank line separator).
 
-### Worked example — 1+1-then-deleted (CAPT-04 release blocker)
+### Worked example — created-then-deleted in same session
 
 > **Turn 1:** You wrote `add(a, b)` in `math.ts`. Scratch-list: `math.ts` (created/modified). Grep finds no `FUNCTIONS::add` entry. Append:
 > ```

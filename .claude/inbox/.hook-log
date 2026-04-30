@@ -1,8 +1,0 @@
-2026-04-30T02:24:27Z test-smoke entering
-2026-04-30T02:24:27Z test-smoke stop-hook-active
-2026-04-30T02:24:31Z test-smoke entering
-2026-04-30T02:24:31Z test-smoke kill-switch
-2026-04-30T02:24:39Z test-smoke entering
-2026-04-30T02:24:39Z test-smoke noop
-2026-04-30T02:24:45Z test-smoke entering
-2026-04-30T02:24:45Z test-smoke fire

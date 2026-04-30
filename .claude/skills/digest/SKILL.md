@@ -10,15 +10,13 @@ argument-hint: "[optional inbox path; defaults to wiki/inbox/_session.md]"
 
 # Digest the session inbox
 
-The user invokes `/digest` after a stretch of work and wants the rolling inbox at `wiki/inbox/_session.md` (or a fixture, e.g. `tests/fixtures/_session-fixture.md` for Phase 1 acceptance) consolidated into properly-filed wiki notes per `wiki/Rules.md`.
+The user invokes `/digest` after a stretch of work and wants the rolling inbox at `wiki/inbox/_session.md` (or an alternative inbox path passed as an argument) consolidated into properly-filed wiki notes per `wiki/Rules.md`.
 
 This skill's body is the prompt the wiki-curator subagent receives when forked. The curator (defined at `.claude/agents/wiki-curator.md`) owns the routing, template, conflict-detection, split, and backlink-rewrite logic. This skill body owns the LIFECYCLE around the curator's work: archive-before-write, post-write link audit, and the empty-inbox no-op path.
 
 ## Resolve the inbox path
 
-If `$ARGUMENTS` is non-empty, use it as the inbox path. Otherwise default to `wiki/inbox/_session.md`. Common values:
-- `wiki/inbox/_session.md` (live session state, populated by Phase 2's inbox-update skill)
-- `tests/fixtures/_session-fixture.md` (Phase 1 hand-authored fixture for acceptance testing)
+If `$ARGUMENTS` is non-empty, use it as the inbox path. Otherwise default to `wiki/inbox/_session.md` — the live session state populated by the inbox-update skill.
 
 ## Step 1 — Confirm the inbox exists and inspect it
 
@@ -113,4 +111,4 @@ If the user's environment has `CLAUDE_CODE_FORK_SUBAGENT=0` (or unset, depending
 - Does NOT route, template, or detect duplicates itself — that's the curator's job.
 - Does NOT modify `wiki/Rules.md` (DIGS-13).
 - Does NOT auto-commit anything (anti-feature A11).
-- Does NOT write to `wiki/inbox/_session.md` after digest — Phase 2's inbox-update skill owns that. This skill leaves the live inbox path untouched after archiving (the curator may truncate it as part of LIFE-02 lifecycle reset, but content writing belongs to Phase 2).
+- Does NOT write to `wiki/inbox/_session.md` after digest — the inbox-update skill owns that. This skill leaves the live inbox path untouched after archiving (the curator may truncate it as part of the LIFE-02 lifecycle reset, but ongoing content writing belongs to inbox-update).

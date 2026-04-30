@@ -6,6 +6,7 @@ Claude Code skill + hook scaffolding that makes Claude auto-maintain an Obsidian
 
 - **Capture loop (write):** every Claude turn that edits/writes code triggers an inbox update. Atomic flat entries, state-of-world (not chronological log), self-pruning when code is deleted or superseded.
 - **Consolidation loop (file):** `/wiki-digest` spawns a fresh-context curator sub-agent that routes inbox entries into `wiki/<CATEGORY>/` notes (ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS), validates against `wiki/Rules.md`, archives the inbox before writing, runs a post-write link-validation pass, and updates `wiki/topic-index.md` (the recall navigation map).
+- **Research-doc ingestion (drop + digest):** Drop any `.md` file directly into `wiki/inbox/` — research notes, design docs, external references, anything not named `_session.md` and not underscore-prefixed. On the next `/wiki-digest`, the curator reads each dropped file in full, decomposes it into one or more concept notes (one per distinct concept for multi-concept docs), routes each to the right category, and applies the same conflict-detection / split / linking logic as session-inbox entries. Consumed docs are archived to `wiki/inbox/_archive/<TS>-research-<filename>.md` and removed from `wiki/inbox/` after success. Conflicts with read-only `wiki/RESEARCH/` notes prompt for explicit user instructions (replace / append / skip / free-form) before any write — never silent overwrite.
 - **Recall loop (read):** a UserPromptSubmit hook detects planning-intent prompts (plan, design, implement, refactor, etc.) and injects an instruction for Claude to consult the wiki via the `wiki-recall` sub-agent before responding. The agent uses `wiki/topic-index.md` as a navigation map, greps for keywords, filters for relevance, and returns only the useful context. Run `/wiki-recall <query>` to invoke recall manually.
 - **One-command bootstrap:** `/wiki-install` creates the wiki/ folder, default Rules.md, default note template, topic-index seed, both hook registrations in settings.json, and CLAUDE.md documentation section — idempotently. Skip + log if anything already exists; never overwrite user content.
 
@@ -130,11 +131,35 @@ If you'd rather copy the files yourself (e.g., for offline installs, or to vendo
 
 6. **When you've done a stretch of work**, run `/wiki-digest` to consolidate the inbox into wiki notes (and refresh `wiki/topic-index.md` for future recall).
 
+## Updating
+
+Once installed, run `/wiki-update` in Claude Code to pull the latest scaffold version from upstream. The command:
+
+- Compares your installed version (`.claude/llm-code-wiki.version`, written by `/wiki-install` at first install) against upstream `VERSION`.
+- Shows the changelog entries for any versions strictly between yours and upstream, then asks for explicit confirmation before applying.
+- Fetches updated `.claude/` files (skills, agents, hooks) per `dist-manifest.txt`.
+- Re-merges your `.claude/settings.json` Stop + UserPromptSubmit hook entries while preserving any other hooks, permissions, env vars, or MCP server entries you've added.
+- Refreshes the `## Auto-maintained wiki` section in `CLAUDE.md` (and only that section — anything else in `CLAUDE.md` is preserved).
+- **Leaves these alone** so your customizations survive: `wiki/Rules.md`, `wiki/_templates/note.md`, `wiki/topic-index.md`. If upstream changed any of those, you'll see a "manual review recommended" note with a link to the upstream file so you can port what you want by hand.
+- Stamps the new version into `.claude/llm-code-wiki.version` only after every step succeeds — a failed update can be safely re-run.
+
+To pull from a fork or branch instead of the default upstream:
+
+```
+/wiki-update https://raw.githubusercontent.com/<OWNER>/<REPO>/<BRANCH>
+```
+
+Restart Claude Code after `/wiki-update` so any new skills or agents register as slash commands. Hooks themselves work without restart.
+
+If the version comparison shows you're already up-to-date, the command exits without touching any files.
+
 ## Usage
 
 - **Inbox file:** `wiki/inbox/_session.md` — the rolling per-project session state. Don't edit by hand; the inbox-update skill maintains it.
+- **Research-doc drop zone:** `wiki/inbox/<your-doc>.md` — drop any `.md` you want consumed as wiki source-of-truth here. Filename can be anything except `_session.md` and must not start with `_`. The next `/wiki-digest` will decompose it into filed notes and archive the original.
+- **Inbox archive:** `wiki/inbox/_archive/` — pre-digest snapshots of every consumed source. Session snapshots: `<TS>-session.md`. Research-doc snapshots: `<TS>-research-<filename>.md`. Same `<TS>` per digest run so all sources from one run group together.
 - **Topic index:** `wiki/topic-index.md` — the recall navigation map. Auto-maintained by `/wiki-digest` (curator Step 9). One bullet per topic with summary and file paths. Don't edit by hand — manual edits will be overwritten on the next digest.
-- **`/wiki-digest`** — runs at logical review checkpoints. Produces a markdown plan (preview before write), validates against Rules.md, writes/edits/splits filed notes, then refreshes `wiki/topic-index.md`. Archives the inbox to `wiki/inbox/_archive/<timestamp>-session.md` BEFORE any write (crash-safe).
+- **`/wiki-digest`** — runs at logical review checkpoints. Consumes BOTH the session inbox AND any research docs in `wiki/inbox/` in one combined plan. Produces a markdown plan grouped by source (preview before write), validates against Rules.md, writes/edits/splits filed notes, then refreshes `wiki/topic-index.md`. Archives every source BEFORE any write (crash-safe). Conflicts between research docs and read-only `wiki/RESEARCH/` notes prompt for explicit user instructions before writing.
 - **`/wiki-recall [query]`** — manually consult the wiki for context relevant to a topic or task. Use when the recall hook didn't fire (non-planning phrasing) or when you want a focused recall on a specific topic. With no args, recalls against the current conversation context.
 - **`wiki/Rules.md`** — your wiki contract. The curator never modifies it autonomously. Rule-change suggestions surface as proposals in the digest plan.
 - **Hook audit log:** `.claude/inbox/.hook-log` — append-only timestamped record of every hook fire. Entries from the Stop hook log the outcome directly (`entering`, `fire`, `noop`, `kill-switch`, etc.). Entries from the recall hook are prefixed with `recall:` (e.g., `recall:fire`, `recall:noop`, `recall:cooldown`).

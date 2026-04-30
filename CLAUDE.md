@@ -19,6 +19,8 @@ This project uses the llm-code-wiki system to keep a codebase wiki current witho
 
 **Write path (capture):** A Stop hook (`inbox-stop.sh`) fires after each Claude assistant turn and nudges Claude to update `wiki/inbox/_session.md` — a state-of-the-world snapshot of what was built and decided this session. Run `/wiki-digest` manually to consolidate the inbox into filed wiki notes under `wiki/` (and refresh `wiki/topic-index.md` for recall).
 
+**Research-doc ingestion:** Drop any `.md` file (research notes, design docs, external references) directly into `wiki/inbox/` — anything other than `_session.md` and underscore-prefixed files. On the next `/wiki-digest`, the curator reads each dropped file in full, decomposes it into one or more concept notes (single-concept docs produce one note; multi-concept docs produce one per concept), routes each to the right category, validates against `wiki/Rules.md`, and applies the same chunking + linking + same-concept-detection logic used for `_session.md` entries. After a successful digest, each consumed research doc is archived to `wiki/inbox/_archive/<TIMESTAMP>-research-<filename>.md` and removed from `wiki/inbox/`. If a research-doc concept collides with an existing read-only `wiki/RESEARCH/` note, the curator surfaces both contents side-by-side and asks for explicit instructions (replace / append / skip / free-form) before any write — research docs do not silently overwrite curated research.
+
 **Brainstorm-fallback (every-N-turns capture):** Pure design conversations produce no Edit/Write/MultiEdit tool calls, so the artifact-driven path no-ops. To prevent decisions from falling on the floor, the Stop hook also tracks a per-session brainstorm counter at `.claude/inbox/.turn-count`. Every `N` consecutive code-free turns (default 10, override via `LCW_BRAINSTORM_TURNS` env var), it fires `inbox-update` in **Brainstorm-fallback mode** with a different `reason` payload — telling Claude to scan the recent conversation for design decisions, named patterns, agreed file paths, and resolved trade-offs, capped at 5 entries per fire. The counter resets to 0 whenever a normal artifact-driven capture fires, so each brainstorm window starts fresh after a code change.
 
 **Read path (recall):** A UserPromptSubmit hook (`recall-prompt.sh`) detects planning-intent prompts and asks Claude to consult the wiki via the `wiki-recall` sub-agent before responding. The agent uses `wiki/topic-index.md` as a navigation map, greps the wiki for keywords, filters for relevance, and returns only the useful context. Run `/wiki-recall <query>` to invoke recall manually.
@@ -27,9 +29,12 @@ This project uses the llm-code-wiki system to keep a codebase wiki current witho
 
 **Quick reference:**
 - Inbox: `wiki/inbox/_session.md`
+- Research-doc drop zone: `wiki/inbox/<your-doc>.md` (any `.md` not named `_session.md` or starting with `_`)
+- Inbox archive: `wiki/inbox/_archive/<TS>-session.md` and `<TS>-research-<filename>.md`
 - Topic index (recall map): `wiki/topic-index.md` (auto-maintained — do not edit by hand)
-- Digest: run `/wiki-digest` at a review checkpoint
+- Digest: run `/wiki-digest` at a review checkpoint (consumes both session inbox and any research docs)
 - Recall: run `/wiki-recall <query>` to consult the wiki on demand
+- Update: run `/wiki-update` to pull upstream improvements (compares `.claude/llm-code-wiki.version` against upstream `VERSION`, shows changelog, refreshes `.claude/` while leaving `wiki/Rules.md`, `wiki/_templates/`, `wiki/topic-index.md` alone)
 - Rules contract: `wiki/Rules.md`
 - Hook audit log: `.claude/inbox/.hook-log` (`recall:` entries from the recall hook; `turncount-pending`/`turncount-fire` entries from the brainstorm-fallback path)
 - Brainstorm counter state: `.claude/inbox/.turn-count` (`SESSION_ID COUNT`; resets on session change or normal capture)

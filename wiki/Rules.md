@@ -73,16 +73,23 @@ Rules for filling it in:
 
 ### 6. Inbox processing workflow
 
-When converting an inbox file:
+`wiki/inbox/` may contain two source types, both processed by `/wiki-digest`:
 
-1. **Read** the source file in full.
-2. **Decide**: single note, or split? Use the 1,000-word rule.
+- **`_session.md`** — handle-line entries (`@ CATEGORY::slug …`) populated by the inbox-update skill. The curator parses these by handle line and uses the handle's CATEGORY as the default route.
+- **Research docs** — any other `.md` file in the root of `wiki/inbox/` (excluding `_session.md` and any underscore-prefixed file) is treated as user-dropped free-prose research material. The curator decomposes each into one or more concept notes by reading the file in full and applying the workflow below.
+
+When converting any inbox source:
+
+1. **Read** the source in full.
+2. **Decide**: single note, or split? Use the 1,000-word rule. For research docs, also decide single-concept vs multi-concept — a multi-concept doc produces one note per distinct concept.
 3. For each resulting note: **draft** the template — Summary, Tags, Created, Last Updated, Content, Related Notes.
 4. **Rewrite the content** to be focused, self-contained, and free of inbox-era artifacts ("UPDATED", "NEW", session-specific dates) unless those artifacts carry meaning.
 5. **Choose a destination folder** from the table in §2. Create subfolders only when justified.
 6. **Write** the new file(s) under the destination folder.
-7. **Delete** the original from `inbox/`.
+7. **Delete** the original from `inbox/` after a successful digest. Research-doc sources are also archived to `wiki/inbox/_archive/<TIMESTAMP>-research-<filename>.md` before deletion (the wiki-digest skill body owns this archive-then-delete lifecycle).
 8. **Add cross-links** to related existing notes via "Related Notes."
+
+For research-doc concepts that collide with existing read-only `wiki/RESEARCH/` notes, `/wiki-digest` does NOT auto-edit. It surfaces the existing note and the proposed content interactively and asks for explicit instructions before any write to `wiki/RESEARCH/` (curator Step 7a).
 
 ### 7. Linking
 
@@ -100,6 +107,9 @@ When converting an inbox file:
 
 - `_templates/` is owned by the schema. Do not file notes there.
 - `inbox/` is a staging area. Notes that live in `inbox/` are not part of the wiki proper and should not be linked from filed notes.
+  - `inbox/_session.md` is the live session inbox (handle-line entries). Auto-maintained by the inbox-update skill; reset on each successful `/wiki-digest`.
+  - `inbox/_archive/` holds pre-digest snapshots of every consumed source (session inbox + research docs). Never written to by the curator; written only by the wiki-digest skill body before any note write (crash-safety guarantee).
+  - **Any other `.md` file the user drops into `inbox/` (i.e. not `_session.md`, not underscore-prefixed) is treated as a research-doc source.** It will be archived and decomposed into filed notes by the next `/wiki-digest` run.
 
 ### 10. When these rules conflict with a request
 

@@ -1,0 +1,41 @@
+
+**Summary**: `/wiki-digest` consolidates session-inbox entries and research-doc drops into filed wiki notes via the curator subagent, owning archive-before-write, audit, and source-cleanup lifecycle.
+**Tags**: #skill #digest #lifecycle #function
+**Created**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:09:00+00:00
+
+---
+
+## Content
+
+**Path:** `.claude/skills/wiki-digest/SKILL.md`
+**Invocation:** `/wiki-digest [optional-inbox-path]`
+
+**Role.** Consolidates inbox sources into filed wiki notes via the wiki-curator subagent. Owns the *lifecycle* around the curator's writes: source discovery, archive-before-write, post-write link audit, source-file deletion on success, and the empty-inbox no-op path.
+
+**Step 1 — Source discovery (two source types):**
+
+1. `wiki/inbox/_session.md` — handle-line entries populated by the inbox-update skill.
+2. Any `.md` file in the root of `wiki/inbox/` excluding `_session.md` and any underscore-prefixed file — treated as user-dropped free-prose research docs.
+
+The combined no-op guard skips the run only when *both* sources are empty.
+
+**Step 2 — Archive every source BEFORE any note write.** All sources copied into `wiki/inbox/_archive/<TS>-session.md` and `<TS>-research-<filename>.md` with one shared timestamp. The crash-safety guarantee (LIFE-03) requires this happen before any curator write — a curator crash mid-write must leave every input recoverable from the archive.
+
+**Step 3 — Curator inputs.** Emits a delimited research-doc payload (`=== RESEARCH-DOC: <path> === … === END RESEARCH-DOC ===`) alongside the session content, the wiki tree, and `wiki/Rules.md` to the curator. The Rules file is read fresh per Pitfall 12 — never a stale skill-body mirror.
+
+**Step 4 — Curator runs.** The curator emits a source-grouped plan (`## Source: <path>` sub-headings), validates it, applies CREATE / EDIT / SPLIT / OVERRIDE rows, and runs interactive resolution for any CONFLICT-ON-RESEARCH rows.
+
+**Step 5 — Post-write link audit (DIGS-11, D-08).** Greps every `[[X]]` and `[[X|alias]]` in the wiki and verifies the canonical title resolves.
+
+**Step 6a — Reset session inbox** to the empty canonical template once the curator's writes succeeded.
+
+**Step 6b — Delete consumed research-doc sources** — only when every concept derived from a doc was successfully applied. Any unresolved CONFLICT-ON-RESEARCH or apply error preserves the source for retry. The Step 2 archive is the safety net.
+
+**Step 7 — Digest summary.** Grouped by source: inbox entries processed, research docs consumed (with derived-notes list and source-file disposition), notes created/edited, splits, overrides, alerts, conflicts, rule proposals, unresolved wiki-links, topic-index changes.
+
+## Related Notes
+
+- [[Wiki Curator Agent]]
+- [[Research Doc Ingestion]]
+- [[Digest Step 6 Inbox Reset]]

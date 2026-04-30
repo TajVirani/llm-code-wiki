@@ -4,6 +4,7 @@ A drop-in `.claude/` scaffold that makes Claude Code auto-maintain an Obsidian-s
 
 - A **Stop hook** nudges Claude to keep a session **inbox** current as a state-of-the-world mirror of what's been built and decided. Run `/wiki-digest` at a review checkpoint to consolidate the inbox into properly-filed wiki notes per a project-defined `wiki/Rules.md` contract.
 - A **UserPromptSubmit hook** detects planning-intent prompts and asks Claude to consult the wiki via a read-only `wiki-recall` sub-agent before responding. The agent uses `wiki/topic-index.md` as a navigation map, greps the corpus for keywords, filters for relevance, and returns only the useful context. Run `/wiki-recall <query>` for on-demand recall.
+- A versioned **update flow** — once installed, run `/wiki-update` to pull upstream scaffold improvements. The command compares your installed version, shows the changelog, fetches updated `.claude/` files, re-merges `.claude/settings.json` without clobbering your other hooks, and leaves `wiki/Rules.md`, `wiki/_templates/`, `wiki/topic-index.md` untouched.
 
 **Built for solo developers** who want code documentation that stays current — including correctly pruning entries when code is deleted or superseded within the same session — and who want prior decisions to surface automatically when planning new work.
 
@@ -28,6 +29,7 @@ Prefer to copy files yourself? See the **Manual install** section in [INSTALL.md
 - `.claude/skills/wiki-recall/` — the `/wiki-recall` slash command (recall path)
 - `.claude/skills/wiki-rules/` — thin pointer to your project's `wiki/Rules.md`
 - `.claude/skills/wiki-install/` — the bootstrap skill (`/wiki-install`)
+- `.claude/skills/wiki-update/` — the upstream-update skill (`/wiki-update`)
 - `.claude/agents/wiki-curator.md` — the curator sub-agent (read+write)
 - `.claude/agents/wiki-recall.md` — the recall sub-agent (read-only)
 - `.claude/hooks/inbox-stop.sh` — the Stop hook script (capture path)

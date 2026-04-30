@@ -1,15 +1,23 @@
 # llm-code-wiki distribution manifest
-# Each line is a repo-relative path that must be fetched into the target project
-# during a remote install. Lines starting with `#` and blank lines are ignored.
+# Each line is: PATH [POLICY]
+#   PATH    — repo-relative path to fetch into the target project
+#   POLICY  — optional update policy used by /wiki-update; defaults to `overwrite`
+#             - overwrite: fetch + replace unconditionally
+#             - keep:      skip if local exists; notify when upstream differs
+# Lines starting with `#` and blank lines are ignored.
 #
 # Hook scripts (.sh) require `chmod +x` after fetch — see INSTALL.md "Remote install".
-# `wiki/` seed files are templates the user customizes; the remote-install fetcher
-# must skip-if-exists for those paths to preserve user content.
+# `wiki/` seed files use the `keep` policy so /wiki-update never overwrites user customizations.
 #
 # `.claude/settings.json` is intentionally NOT in this manifest. The remote-install
 # flow delegates settings.json merge to .claude/skills/wiki-install/SKILL.md (Step 5/5b),
-# which knows how to merge into an existing settings.json without clobbering unrelated
-# permissions/env entries.
+# and /wiki-update applies the same merge protocol — both preserve unrelated permissions/env entries.
+# `CLAUDE.md` is similarly not in this manifest; its `## Auto-maintained wiki` section is
+# managed by /wiki-install Step 6 and refreshed by /wiki-update.
+
+# Versioning
+VERSION
+CHANGELOG.md
 
 # Skills
 .claude/skills/inbox-update/SKILL.md
@@ -19,6 +27,7 @@
 .claude/skills/wiki-install/SETTINGS-SNIPPET.md
 .claude/skills/wiki-recall/SKILL.md
 .claude/skills/wiki-rules/SKILL.md
+.claude/skills/wiki-update/SKILL.md
 
 # Agents
 .claude/agents/wiki-curator.md
@@ -28,9 +37,8 @@
 .claude/hooks/inbox-stop.sh
 .claude/hooks/recall-prompt.sh
 
-# Wiki seeds (skip-if-exists at fetch time; /wiki-install also won't overwrite).
-# Note: wiki/topic-index.md is intentionally NOT shipped here — this repo's copy is
-# populated with dogfood bullets, not the canonical empty seed. /wiki-install Step 4b
-# creates the empty seed inline.
-wiki/Rules.md
-wiki/_templates/note.md
+# Wiki seeds — user-owned. /wiki-update will NOT overwrite these; remote-install fetcher
+# also uses skip-if-exists semantics for them. Note: wiki/topic-index.md is intentionally
+# NOT shipped here (curator regenerates it; /wiki-install Step 4b creates the empty seed inline).
+wiki/Rules.md  keep
+wiki/_templates/note.md  keep

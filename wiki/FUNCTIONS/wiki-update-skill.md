@@ -2,7 +2,7 @@
 **Summary**: `/wiki-update` slash command pulls upstream scaffold improvements into an existing install — idempotent, manifest-driven, with per-line `overwrite`/`keep` policy and post-fetch hook + CLAUDE.md re-merge.
 **Tags**: #skill #update #versioning #lifecycle #function
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:32:00+00:00
 
 ---
 

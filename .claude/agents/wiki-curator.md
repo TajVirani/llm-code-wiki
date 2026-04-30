@@ -234,9 +234,9 @@ This step writes ONLY to `wiki/topic-index.md`. It does not touch any other file
 
 ### Step 10 — Reset the live inbox
 
-After Steps 7 (writes), 7a (interactive conflict resolution), 8 (link audit), and 9 (topic-index update) all succeed, reset `wiki/inbox/_session.md` to the canonical empty template. The inbox is a derived view of work-not-yet-filed; once the curator has filed those entries into `wiki/<CATEGORY>/` notes and updated the topic-index, they no longer belong in the live inbox. The Step 2 archive (performed by the wiki-digest skill body before the curator runs) preserves the pre-digest state for crash safety.
+After Steps 7 (writes), 7a (interactive conflict resolution), 8 (link audit), and 9 (topic-index update) all succeed, reset `wiki/inbox/_session.md` to the canonical empty template. The inbox is a derived view of work-not-yet-filed; once you've filed those entries into `wiki/<CATEGORY>/` notes and updated the topic-index, they no longer belong in the live inbox. The Step 2 archive (rendered into your prompt by the skill body's pre-fork bash injections) preserves the pre-digest state for crash safety.
 
-Use Write to overwrite `wiki/inbox/_session.md` with exactly:
+Use the **Write** tool to overwrite `wiki/inbox/_session.md` with exactly:
 
 ```markdown
 # Session Inbox
@@ -251,7 +251,28 @@ This matches the canonical template that the `inbox-update` skill creates on fir
 
 **Skip the reset** ONLY if any earlier step reported unrecoverable errors — in that case the user needs the inbox preserved so they can retry. Skipping the reset is loud: surface "Live inbox: preserved — Step <N> reported errors, see above" in the digest summary.
 
-This step writes ONLY to `wiki/inbox/_session.md`. It does not touch any other file. **Research-doc source files at `wiki/inbox/<name>.md` are NOT deleted by you** — that lifecycle action is owned by Step 6b of the wiki-digest skill body, which uses the per-source APPLIED/SKIPPED status you reported in Step 7a to decide which source files to delete.
+**Do NOT defer this step to "the skill body" or any external runtime.** With `context: fork` there is no parent that resumes after you finish; you are the only executor. The wiki-digest skill body's Step 6a is the same action described from a different angle — both wordings refer to this Write you perform. If you find yourself writing a sentence like "the calling skill body should reset…" in your summary, stop and perform the Write yourself.
+
+### Step 11 — Tombstone consumed research-doc source files
+
+For each research doc whose concepts were ALL successfully APPLIED (CREATE/EDIT/SPLIT/OVERRIDE rows applied; no unresolved CONFLICT-ON-RESEARCH; no apply errors), mark the source file as consumed.
+
+Your allowed-tools list (Read, Write, Edit, Glob, Grep) does not include Bash, so you cannot `rm` the source file directly. Use **Write** to overwrite `wiki/inbox/<name>.md` with a one-line tombstone:
+
+```
+> Consumed by /wiki-digest at <ISO-8601>; archived at wiki/inbox/_archive/<TS>-research-<name>.md. Safe to delete manually.
+```
+
+Per-doc rule:
+- All concepts APPLIED → write the tombstone over the source file.
+- ANY unresolved CONFLICT-ON-RESEARCH (Step 7a "skip" or no instruction) → preserve the source file unchanged so the user can retry.
+- Any apply error → preserve.
+
+Surface the tombstone list in the digest summary so the user can do a final `rm` themselves if they want a clean inbox. The Step 2b archive is the recoverable record of the original content.
+
+(If your tools are extended in a future revision to include Bash, this step can be replaced with `rm wiki/inbox/<name>.md` directly. The tombstone fallback is the current correct behavior.)
+
+This step writes ONLY to `wiki/inbox/<name>.md` files; it does not touch any other path.
 
 ## Hybrid override examples (D-01)
 
@@ -295,4 +316,4 @@ If the wiki-digest skill cannot fork (`CLAUDE_CODE_FORK_SUBAGENT=0`), the wiki-d
   - Research-doc same-concept hit on RESEARCH/ → emit CONFLICT-ON-RESEARCH row, defer to Step 7a interactive resolution. Any write to RESEARCH/ is authorized by the user's typed instruction in Step 7a, never by automatic plan approval.
   - CREATE of brand-new RESEARCH/ notes is allowed when no same-concept conflict exists, regardless of source.
   - You do not rewrite backlinks inside RESEARCH/ files.
-- You do not delete research-doc source files at `wiki/inbox/<name>.md`. That lifecycle action belongs to the wiki-digest skill body's Step 6b, which uses your APPLIED/SKIPPED report from Step 7a.
+- You DO tombstone research-doc source files at `wiki/inbox/<name>.md` per Step 11 (Write a one-line marker over the source). You do NOT use `rm` — your tools list does not include Bash, and the tombstone fallback is the current correct behavior. The user can do a final `rm` themselves after seeing the tombstone list in the digest summary.

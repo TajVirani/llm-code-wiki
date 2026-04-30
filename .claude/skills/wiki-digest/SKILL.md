@@ -15,7 +15,9 @@ The user invokes `/wiki-digest` after a stretch of work and wants two source typ
 1. **The session inbox** at `wiki/inbox/_session.md` (or an alternative inbox path passed as an argument) — handle-line entries (`@ CATEGORY::slug …`) populated by the inbox-update skill.
 2. **Research docs** — any `.md` file the user has dropped into the root of `wiki/inbox/` other than `_session.md` and any underscore-prefixed file. These are free-prose markdown documents (research notes, design docs, external references) the user wants treated as source-of-truth and decomposed into filed wiki notes.
 
-This skill's body is the prompt the wiki-curator subagent receives when forked. The curator (defined at `.claude/agents/wiki-curator.md`) owns the routing, template, conflict-detection, split, and backlink-rewrite logic for BOTH source types. This skill body owns the LIFECYCLE around the curator's work: archive-before-write (covers both sources), post-write link audit, source-file deletion on success, and the empty-inbox no-op path.
+This skill's body IS the prompt the wiki-curator subagent receives when forked. With `context: fork` there is no separate "parent" runtime that resumes after the curator finishes — the curator IS the only executor. Every step below is something **you, the curator, perform**, in order. Steps 1–3 are input-gathering bash injections that have already been evaluated and embedded into your prompt by the time you read this; Steps 4–7 are your responsibilities (routing, applying writes, post-write audit, lifecycle cleanup, summary). Anywhere you see "skill body" below, read it as "you" — there is nobody else.
+
+The curator's broader protocol (routing details, template enforcement, same-concept detection, split logic, backlink rewriting, RESEARCH/ write-protection branches, and Step 10 inbox reset) is defined at `.claude/agents/wiki-curator.md`. That agent definition and this skill body together describe the full digest behavior; in case of any wording overlap, the agent definition is authoritative.
 
 ## Resolve the session inbox path
 
@@ -120,15 +122,15 @@ For each unique `[[X]]` reference (or `[[X|alias]]` — strip the `|alias` part)
 
 Per D-08: this audit covers BOTH pre-existing dangling links AND any links the curator failed to rewrite during a split. It is the safety net.
 
-## Step 6 — Reset the live inbox and delete consumed research docs
+## Step 6 — Cleanup (you, the curator, perform these)
 
-After the curator's writes succeeded and the post-write audit completed, clean up both source types.
+After your writes from Step 4–5 succeeded and the post-write audit completed, clean up both source types yourself. **There is no separate runtime that performs these steps after you finish.** Skipping them leaves the next digest re-processing already-filed entries. Treat 6a and 6b as part of your protocol, not as a hand-off to anyone else.
 
 ### 6a. Reset the session inbox
 
-Reset `wiki/inbox/_session.md` to the empty canonical template. The inbox is a derived view of work-not-yet-filed; once those entries are archived AND filed into `wiki/<CATEGORY>/` notes, they no longer belong in the live inbox. Without this reset, the next session's `inbox-update` would see stale entries that already correspond to filed notes, and the next `/wiki-digest` would re-process them (idempotent via same-concept detection, but wasteful and noisy).
+Reset `wiki/inbox/_session.md` to the empty canonical template. The inbox is a derived view of work-not-yet-filed; once those entries are archived AND filed into `wiki/<CATEGORY>/` notes, they no longer belong in the live inbox. This duplicates curator agent Step 10 — both wordings describe the same action, performed by you.
 
-Use Write to overwrite `wiki/inbox/_session.md` with exactly:
+Use the **Write** tool to overwrite `wiki/inbox/_session.md` with exactly:
 
 ```markdown
 # Session Inbox
@@ -139,22 +141,30 @@ Use Write to overwrite `wiki/inbox/_session.md` with exactly:
 ---
 ```
 
-This matches the canonical template that the `inbox-update` skill creates on first use (see its "Self-creation guard" section).
+This matches the canonical template that the `inbox-update` skill creates on first use (see its "Self-creation guard" section). Do not skip this step on success-path runs — the user has reported the missing reset as a bug.
 
 ### 6b. Delete consumed research-doc source files
 
-For each research doc the curator surfaced in its plan, delete the source file at `wiki/inbox/<name>.md` ONLY IF every concept derived from that file was successfully applied. The Step 2 archive is the crash-safety net.
+For each research doc whose concepts were ALL successfully APPLIED in your plan, delete the source file at `wiki/inbox/<name>.md`. The Step 2b archive is the crash-safety net.
 
-Specifically:
-- A research doc whose concepts all resulted in CREATE / EDIT / SPLIT / OVERRIDE rows that were applied → `rm wiki/inbox/<name>.md`.
-- A research doc that produced ANY unresolved CONFLICT-ON-RESEARCH (user picked "skip" in Step 7a, or did not provide instructions) → DO NOT delete the source file. The user may want to retry with different instructions; the unresolved concept must remain reachable.
-- A research doc whose plan rows failed validation or apply → DO NOT delete the source file.
+Apply per-doc:
+- All concepts APPLIED (CREATE/EDIT/SPLIT/OVERRIDE rows applied successfully) → delete `wiki/inbox/<name>.md`.
+- ANY unresolved CONFLICT-ON-RESEARCH (Step 7a "skip" or no instruction) → preserve the source file so the user can retry.
+- Any apply error → preserve.
 
-Use the Bash tool to perform deletes after reading the curator's plan-application result. Log each delete: `rm wiki/inbox/<name>.md` succeeded; preserved-on-skip / preserved-on-error otherwise.
+**Tooling note:** the curator's allowed-tools list (Read, Write, Edit, Glob, Grep) does not include Bash, so true file deletion via `rm` is not directly available to you. Use the **Write** tool to overwrite the file with a one-line tombstone marker so the next digest's discovery (which uses `find … -name '*.md' ! -name '_*'`) still picks it up but the user can see it was processed:
+
+```
+> Consumed by /wiki-digest at <ISO-8601>; archived at wiki/inbox/_archive/<TS>-research-<name>.md. Safe to delete manually.
+```
+
+Log each tombstone: `tombstoned wiki/inbox/<name>.md`; preserved-on-skip / preserved-on-error otherwise. Surface the tombstone list in the digest summary so the user can do a final `rm` themselves if they want a clean inbox.
+
+(If your tools are extended in a future revision to include Bash, this step can be replaced with `rm` directly. The tombstone fallback is the current correct behavior.)
 
 ### 6c. Skip rule
 
-**Skip BOTH 6a and 6b** ONLY if the curator aborted mid-run or the post-write audit surfaced unrecoverable errors — in that case the user needs both sources preserved to retry. The archives in Step 2 are the crash-safety net; the resets and deletes here are normal-path lifecycle actions that depend on success.
+**Skip BOTH 6a and 6b** ONLY if any earlier step (curator routing, validation, apply, audit) reported unrecoverable errors. The archives in Step 2 are the crash-safety net; the resets and tombstones here are normal-path lifecycle actions that depend on success. Skipping is loud — surface "Live inbox: preserved — Step <N> reported errors, see above" in the digest summary.
 
 ## Step 7 — Emit the digest summary
 
@@ -195,6 +205,6 @@ If the user's environment has `CLAUDE_CODE_FORK_SUBAGENT=0` (or unset, depending
 - Does NOT modify `wiki/Rules.md` (DIGS-13).
 - Does NOT auto-commit anything (anti-feature A11).
 - Does NOT preserve filed entries in `wiki/inbox/_session.md` after a successful digest. Step 6a resets the live inbox to its empty template once the curator's writes succeeded and the post-write audit passed. Subsequent edits/writes to `_session.md` belong to the `inbox-update` skill (the lifecycle is: inbox-update appends → /wiki-digest archives + files + resets → inbox-update appends fresh entries from the next turn).
-- Does NOT preserve research-doc source files in `wiki/inbox/<name>.md` after a successful digest of that file's concepts. Step 6b deletes each fully-applied research doc from the inbox root (the Step 2b archive is the safety net). Files with unresolved CONFLICT-ON-RESEARCH rows or apply errors are preserved for retry.
-- Does NOT reset the live inbox or delete research-doc sources if the curator aborted mid-run or the audit surfaced unrecoverable errors. In failure cases both source types are preserved so the user can retry; the Step 2 archives are always the crash-safety net.
+- Does NOT preserve research-doc source files unmodified in `wiki/inbox/<name>.md` after a successful digest of that file's concepts. Step 6b tombstones each fully-applied research doc with a one-line marker so the user can do a final `rm` themselves (the curator lacks Bash, so true deletion is left to the user). The Step 2b archive is the safety net for the original content. Files with unresolved CONFLICT-ON-RESEARCH rows or apply errors are preserved unchanged for retry.
+- Does NOT reset the live inbox or tombstone research-doc sources if any earlier step reported unrecoverable errors. In failure cases both source types are preserved so the user can retry; the Step 2 archives are always the crash-safety net.
 - Does NOT process files matching `_*` (underscore-prefixed) at `wiki/inbox/` — these are reserved (`_session.md`, `_archive/`, etc.) and are skipped during research-doc discovery.

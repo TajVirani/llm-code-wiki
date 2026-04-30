@@ -2,7 +2,7 @@
 **Summary**: Remote-install flow lets Claude fetch the scaffold from a public repo URL using `dist-manifest.txt` as the authoritative path list, without dragging the source repo's dogfood wiki along.
 **Tags**: #install #distribution #architecture
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:32:00+00:00
 
 ---
 

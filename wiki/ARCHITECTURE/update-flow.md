@@ -2,7 +2,7 @@
 **Summary**: End-to-end versioning + upstream update mechanism for installed scaffolds, anchored on `VERSION`, `CHANGELOG.md`, and `dist-manifest.txt` with per-line `overwrite`/`keep` policy.
 **Tags**: #architecture #update #versioning #distribution
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:32:00+00:00
 
 ---
 

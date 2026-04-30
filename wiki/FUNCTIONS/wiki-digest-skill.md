@@ -2,7 +2,7 @@
 **Summary**: `/wiki-digest` consolidates session-inbox entries and research-doc drops into filed wiki notes via the curator subagent, owning archive-before-write, audit, and source-cleanup lifecycle.
 **Tags**: #skill #digest #lifecycle #function
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:32:00+00:00
 
 ---
 

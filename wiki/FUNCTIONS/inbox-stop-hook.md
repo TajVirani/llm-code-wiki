@@ -2,7 +2,7 @@
 **Summary**: Stop hook script fired at every assistant turn boundary; orchestrates capture path with loop-protection trifecta and brainstorm-fallback counter.
 **Tags**: #hook #capture #brainstorm #function
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:32:00+00:00
 
 ---
 

@@ -2,7 +2,7 @@
 **Summary**: Curator subagent consumed by `/wiki-digest`; routes session-inbox handle entries and research-doc free prose into filed wiki notes per Rules.md, with D-19 RESEARCH/ write-protection branching by source.
 **Tags**: #agent #digest #routing #function
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:32:00+00:00
 
 ---
 

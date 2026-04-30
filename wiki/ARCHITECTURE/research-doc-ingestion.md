@@ -2,7 +2,7 @@
 **Summary**: Lifecycle for ingesting user-dropped `.md` research docs from `wiki/inbox/` into filed wiki notes, with interactive conflict resolution against read-only `wiki/RESEARCH/`.
 **Tags**: #architecture #digest #ingestion
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:32:00+00:00
 
 ---
 

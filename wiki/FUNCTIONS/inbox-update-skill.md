@@ -2,7 +2,7 @@
 **Summary**: Skill invoked by the Stop hook to maintain `wiki/inbox/_session.md` as a derived view of codebase state, with a brainstorm-fallback mode.
 **Tags**: #skill #capture #brainstorm #function
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:32:00+00:00
 
 ---
 

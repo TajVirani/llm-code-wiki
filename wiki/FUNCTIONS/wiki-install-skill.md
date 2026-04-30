@@ -2,7 +2,7 @@
 **Summary**: `/wiki-install` slash command bootstraps the auto-wiki system in a target project — idempotent, hook-merging, and stamp-versioned.
 **Tags**: #skill #install #bootstrap #function
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:09:00+00:00
+**Last Updated**: 2026-04-30T16:32:00+00:00
 
 ---
 

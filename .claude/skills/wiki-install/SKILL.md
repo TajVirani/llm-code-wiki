@@ -177,7 +177,7 @@ First check for jq:
 
 ```bash
 if ! command -v jq >/dev/null 2>&1; then
-  echo "[wiki-install] ABORT: jq is required to merge the Stop hook entry into your existing .claude/settings.json. Install jq and re-run /wiki-install, OR manually add the hook entry documented in wiki/_templates/SETTINGS-SNIPPET.md"
+  echo "[wiki-install] ABORT: jq is required to merge the Stop hook entry into your existing .claude/settings.json. Install jq and re-run /wiki-install, OR manually add the hook entry documented in .claude/skills/wiki-install/SETTINGS-SNIPPET.md"
   exit 1
 fi
 ```

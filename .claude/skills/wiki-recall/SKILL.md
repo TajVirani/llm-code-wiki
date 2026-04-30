@@ -1,5 +1,5 @@
 ---
-name: recall
+name: wiki-recall
 description: Manually surface prior wiki context relevant to a topic or task. Forks into the wiki-recall sub-agent. Use when the recall hook didn't fire (non-planning phrasing) or you want to recall against a specific topic.
 disable-model-invocation: true
 user-invocable: true
@@ -9,9 +9,9 @@ allowed-tools: Read, Glob, Grep
 argument-hint: "[optional recall query; defaults to the current conversation context]"
 ---
 
-# /recall — Surface relevant wiki context
+# /wiki-recall — Surface relevant wiki context
 
-The user invokes `/recall` to consult the project wiki on demand — usually because the recall hook didn't fire (the prompt didn't trigger planning-intent keywords) or because they want a focused recall against a specific topic.
+The user invokes `/wiki-recall` to consult the project wiki on demand — usually because the recall hook didn't fire (the prompt didn't trigger planning-intent keywords) or because they want a focused recall against a specific topic.
 
 This skill's body is the prompt the wiki-recall subagent receives when forked. The agent (defined at `.claude/agents/wiki-recall.md`) owns the navigation, keyword extraction, grep, relevance-filter, and output-format logic. This skill body owns the LIFECYCLE around that work: resolving the recall query and surfacing the agent's return verbatim.
 
@@ -49,5 +49,5 @@ If `CLAUDE_CODE_FORK_SUBAGENT=0` (or unset, depending on Claude Code version), `
 ## Things this skill does NOT do
 
 - Does NOT modify any wiki file — the agent has no write tools.
-- Does NOT update `wiki/topic-index.md` — that's the digest skill's job.
+- Does NOT update `wiki/topic-index.md` — that's the wiki-digest skill's job.
 - Does NOT trigger code changes or planning — recall surfaces context only; the parent thread decides what to do with it.

@@ -104,7 +104,7 @@ fi
 # If the prompt is asking to digest, file notes, or update the wiki itself,
 # don't recall — the user is curating, not planning.
 # ---------------------------------------------------------------------------
-if printf '%s' "$PROMPT" | grep -Eqi '(\b(digest|inbox|curate|file (a |the )?note|wiki/inbox|topic-index)\b|/digest|/recall)'; then
+if printf '%s' "$PROMPT" | grep -Eqi '(\b(digest|inbox|curate|file (a |the )?note|wiki/inbox|topic-index)\b|/wiki-digest|/wiki-recall)'; then
   log_outcome "wiki-only"
   exit 0
 fi

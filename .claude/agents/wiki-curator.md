@@ -20,7 +20,7 @@ Operate only inside `wiki/`. Never touch any path outside `wiki/`. The two paths
 1. Confirm the wiki-rules skill has been preloaded; if not, Read `wiki/Rules.md` yourself.
 2. Glob `wiki/**/*.md` (excluding `wiki/inbox/` and `wiki/_templates/`) to enumerate existing filed notes by filename. This is your duplicate-detection index (DIGS-09; Pitfall 9 mitigation).
 3. Read each entry from the inbox payload. Inbox entries follow the handle convention: a single line starting with `@ CATEGORY::slug  •  path-or-em-dash  •  #tags` followed by a body paragraph or three.
-4. **Wiki tree fallback (W7):** If the wiki tree listing received in your input from the calling skill is empty, blank, or missing (this happens when the consumer has `disableSkillShellExecution: true` and the digest skill's bash-injected `find` produced an empty string), Glob `wiki/**/*.md` yourself excluding `wiki/inbox/` and `wiki/_templates/`, then proceed. Never proceed against an empty tree listing without verifying via Glob — silent emptiness would defeat same-concept detection.
+4. **Wiki tree fallback (W7):** If the wiki tree listing received in your input from the calling skill is empty, blank, or missing (this happens when the consumer has `disableSkillShellExecution: true` and the wiki-digest skill's bash-injected `find` produced an empty string), Glob `wiki/**/*.md` yourself excluding `wiki/inbox/` and `wiki/_templates/`, then proceed. Never proceed against an empty tree listing without verifying via Glob — silent emptiness would defeat same-concept detection.
 
 ### Step 2 — Decide routing per entry (DIGS-04, D-01, D-02)
 
@@ -138,6 +138,27 @@ If `wiki/topic-index.md` does not exist yet (e.g., the user never ran `/wiki-ins
 
 This step writes ONLY to `wiki/topic-index.md`. It does not touch any other file. It does not propose new categories — those still flow through RULES-PROPOSAL rows in Step 5.
 
+### Step 10 — Reset the live inbox
+
+After Steps 7 (writes), 8 (link audit), and 9 (topic-index update) all succeed, reset `wiki/inbox/_session.md` to the canonical empty template. The inbox is a derived view of work-not-yet-filed; once the curator has filed those entries into `wiki/<CATEGORY>/` notes and updated the topic-index, they no longer belong in the live inbox. The Step 2 archive (performed by the wiki-digest skill body before the curator runs) preserves the pre-digest state for crash safety.
+
+Use Write to overwrite `wiki/inbox/_session.md` with exactly:
+
+```markdown
+# Session Inbox
+
+**Status**: live session state
+**Purpose**: state-of-the-world mirror of what exists in the codebase this session. The codebase is ground truth; this file is a derived view.
+
+---
+```
+
+This matches the canonical template that the `inbox-update` skill creates on first use.
+
+**Skip the reset** ONLY if any earlier step reported unrecoverable errors — in that case the user needs the inbox preserved so they can retry. Skipping the reset is loud: surface "Live inbox: preserved — Step <N> reported errors, see above" in the digest summary.
+
+This step writes ONLY to `wiki/inbox/_session.md`. It does not touch any other file.
+
 ## Hybrid override examples (D-01)
 
 Good (route stays as-is, silent):
@@ -148,7 +169,7 @@ Good (override surfaced):
 
 ## Non-fork fallback (D-13)
 
-If the digest skill cannot fork (`CLAUDE_CODE_FORK_SUBAGENT=0`), the digest skill calls you by name (`agent: wiki-curator`) and provides the inbox payload + wiki tree as text in the prompt. Your protocol is identical. Forking only changes how you are invoked, not what you do.
+If the wiki-digest skill cannot fork (`CLAUDE_CODE_FORK_SUBAGENT=0`), the wiki-digest skill calls you by name (`agent: wiki-curator`) and provides the inbox payload + wiki tree as text in the prompt. Your protocol is identical. Forking only changes how you are invoked, not what you do.
 
 ## Things you do not do
 

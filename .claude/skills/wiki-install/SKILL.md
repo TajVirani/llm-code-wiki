@@ -17,16 +17,16 @@ Verify the required `.claude/` files are present and both hooks are executable:
 ```bash
 for f in \
   "$CLAUDE_PROJECT_DIR/.claude/skills/inbox-update/SKILL.md" \
-  "$CLAUDE_PROJECT_DIR/.claude/skills/digest/SKILL.md" \
-  "$CLAUDE_PROJECT_DIR/.claude/skills/recall/SKILL.md" \
+  "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-digest/SKILL.md" \
+  "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-recall/SKILL.md" \
   "$CLAUDE_PROJECT_DIR/.claude/agents/wiki-curator.md" \
   "$CLAUDE_PROJECT_DIR/.claude/agents/wiki-recall.md" \
   "$CLAUDE_PROJECT_DIR/.claude/hooks/inbox-stop.sh" \
-  "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh"; do
+  "$CLAUDE_PROJECT_DIR/.claude/hooks/wiki-recall-prompt.sh"; do
   test -f "$f" || { echo "[wiki-install] ABORT: $f not found. Copy the .claude/ tree before running /wiki-install."; exit 1; }
 done
 test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/inbox-stop.sh" || { echo "[wiki-install] ABORT: inbox-stop.sh exists but is not executable. Run: chmod +x .claude/hooks/inbox-stop.sh"; exit 1; }
-test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh" || { echo "[wiki-install] ABORT: recall-prompt.sh exists but is not executable. Run: chmod +x .claude/hooks/recall-prompt.sh"; exit 1; }
+test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/wiki-recall-prompt.sh" || { echo "[wiki-install] ABORT: recall-prompt.sh exists but is not executable. Run: chmod +x .claude/hooks/wiki-recall-prompt.sh"; exit 1; }
 echo "[wiki-install] Precondition check passed — .claude/ tree is in place."
 ```
 
@@ -131,7 +131,7 @@ else
 fi
 ```
 
-If absent, Read this repo's `wiki/topic-index.md` to get the canonical (empty) seed, then Write it to `$CLAUDE_PROJECT_DIR/wiki/topic-index.md`. The seed contains only the front-matter and an HTML maintenance comment — it is auto-populated by `/digest` (curator Step 9) as notes accumulate.
+If absent, Read this repo's `wiki/topic-index.md` to get the canonical (empty) seed, then Write it to `$CLAUDE_PROJECT_DIR/wiki/topic-index.md`. The seed contains only the front-matter and an HTML maintenance comment — it is auto-populated by `/wiki-digest` (curator Step 9) as notes accumulate.
 
 After writing:
 
@@ -182,7 +182,7 @@ Use Write to create `.claude/settings.json` with the full canonical structure (b
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/recall-prompt.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/wiki-recall-prompt.sh",
             "timeout": 10
           }
         ]
@@ -280,7 +280,7 @@ fi
 If `.hooks.UserPromptSubmit[0].hooks` already exists:
 
 ```bash
-HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh'
+HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/wiki-recall-prompt.sh'
 jq --arg cmd "$HOOK_CMD" '.hooks.UserPromptSubmit[0].hooks += [{"type":"command","command":$cmd,"timeout":10}]' \
   "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/wiki-install-settings-tmp.json \
   && mv /tmp/wiki-install-settings-tmp.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
@@ -289,7 +289,7 @@ jq --arg cmd "$HOOK_CMD" '.hooks.UserPromptSubmit[0].hooks += [{"type":"command"
 If `.hooks.UserPromptSubmit` key is absent (create it):
 
 ```bash
-HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh'
+HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/wiki-recall-prompt.sh'
 jq --arg cmd "$HOOK_CMD" '.hooks = (.hooks // {}) | .hooks.UserPromptSubmit = (.hooks.UserPromptSubmit // [{"hooks":[]}]) | .hooks.UserPromptSubmit[0].hooks += [{"type":"command","command":$cmd,"timeout":10}]' \
   "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/wiki-install-settings-tmp.json \
   && mv /tmp/wiki-install-settings-tmp.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
@@ -298,7 +298,7 @@ jq --arg cmd "$HOOK_CMD" '.hooks = (.hooks // {}) | .hooks.UserPromptSubmit = (.
 **Verify after merge:** confirm the literal `$CLAUDE_PROJECT_DIR` token survived (same B3 check):
 
 ```bash
-if grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh' "$CLAUDE_PROJECT_DIR/.claude/settings.json"; then
+if grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/wiki-recall-prompt.sh' "$CLAUDE_PROJECT_DIR/.claude/settings.json"; then
   echo "[wiki-install] Merged UserPromptSubmit hook entry into existing .claude/settings.json"
 else
   echo "[wiki-install] ABORT: Post-merge verification failed for UserPromptSubmit hook — settings.json may contain a hardcoded path. Restore your original settings.json from backup and re-run /wiki-install."
@@ -326,9 +326,9 @@ The section to write or append:
 
 This project uses the llm-code-wiki system to keep a codebase wiki current without manual upkeep, and to recall prior decisions automatically when planning new work.
 
-**Write path (capture):** A Stop hook (`inbox-stop.sh`) fires after each Claude assistant turn and nudges Claude to update `wiki/inbox/_session.md` — a state-of-the-world snapshot of what was built and decided this session. Run `/digest` manually to consolidate the inbox into filed wiki notes under `wiki/`.
+**Write path (capture):** A Stop hook (`inbox-stop.sh`) fires after each Claude assistant turn and nudges Claude to update `wiki/inbox/_session.md` — a state-of-the-world snapshot of what was built and decided this session. Run `/wiki-digest` manually to consolidate the inbox into filed wiki notes under `wiki/`.
 
-**Read path (recall):** A UserPromptSubmit hook (`recall-prompt.sh`) detects planning-intent prompts and asks Claude to consult the wiki via the `wiki-recall` sub-agent before responding. The agent uses `wiki/topic-index.md` as a navigation map, greps the wiki for keywords, filters for relevance, and returns only the useful context. Run `/recall <query>` to invoke recall manually.
+**Read path (recall):** A UserPromptSubmit hook (`recall-prompt.sh`) detects planning-intent prompts and asks Claude to consult the wiki via the `wiki-recall` sub-agent before responding. The agent uses `wiki/topic-index.md` as a navigation map, greps the wiki for keywords, filters for relevance, and returns only the useful context. Run `/wiki-recall <query>` to invoke recall manually.
 
 **Wiki contract:** `wiki/Rules.md` defines all conventions (category folders, filename kebab-case, note template, ≤25-word summaries, 1,000-word note cap, Obsidian wiki-link syntax, `topic-index.md` auto-maintenance). The curator never modifies `wiki/Rules.md` autonomously — rule-change suggestions surface as proposals.
 
@@ -337,8 +337,8 @@ This project uses the llm-code-wiki system to keep a codebase wiki current witho
 **Quick reference:**
 - Inbox: `wiki/inbox/_session.md`
 - Topic index (recall map): `wiki/topic-index.md` (auto-maintained — do not edit by hand)
-- Digest: run `/digest` at a review checkpoint
-- Recall: run `/recall <query>` to consult the wiki on demand
+- Digest: run `/wiki-digest` at a review checkpoint
+- Recall: run `/wiki-recall <query>` to consult the wiki on demand
 - Rules contract: `wiki/Rules.md`
 - Hook audit log: `.claude/inbox/.hook-log` (entries prefixed `recall:` are from the recall hook)
 - Kill switches:
@@ -392,7 +392,7 @@ Synthesize a planning-intent prompt and pipe it through the recall hook. The hoo
 ```bash
 export CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR"
 RECALL_OUT=$(echo '{"session_id":"wiki-install-recall-test","prompt":"plan how to add a new feature"}' \
-  | "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh" 2>&1)
+  | "$CLAUDE_PROJECT_DIR/.claude/hooks/wiki-recall-prompt.sh" 2>&1)
 RECALL_EXIT=$?
 if [ -f "$CLAUDE_PROJECT_DIR/.claude/inbox/.hook-log" ] && tail -5 "$CLAUDE_PROJECT_DIR/.claude/inbox/.hook-log" | grep -q "wiki-install-recall-test recall:fire"; then
   if echo "$RECALL_OUT" | grep -q "Wiki recall"; then

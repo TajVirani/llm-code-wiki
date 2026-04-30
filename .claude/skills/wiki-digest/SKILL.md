@@ -1,5 +1,5 @@
 ---
-name: digest
+name: wiki-digest
 description: Process the rolling session inbox at wiki/inbox/_session.md (or a fixture path) into filed wiki notes per wiki/Rules.md. Archives the inbox before any note write, then forks into the wiki-curator subagent for routing. Run manually as a review checkpoint. Never modifies wiki/Rules.md.
 disable-model-invocation: true
 context: fork
@@ -10,20 +10,20 @@ argument-hint: "[optional inbox path; defaults to wiki/inbox/_session.md]"
 
 # Digest the session inbox
 
-The user invokes `/digest` after a stretch of work and wants the rolling inbox at `wiki/inbox/_session.md` (or an alternative inbox path passed as an argument) consolidated into properly-filed wiki notes per `wiki/Rules.md`.
+The user invokes `/wiki-digest` after a stretch of work and wants the rolling inbox at `wiki/inbox/_session.md` (or an alternative inbox path passed as an argument) consolidated into properly-filed wiki notes per `wiki/Rules.md`.
 
 This skill's body is the prompt the wiki-curator subagent receives when forked. The curator (defined at `.claude/agents/wiki-curator.md`) owns the routing, template, conflict-detection, split, and backlink-rewrite logic. This skill body owns the LIFECYCLE around the curator's work: archive-before-write, post-write link audit, and the empty-inbox no-op path.
 
 ## Resolve the inbox path
 
-If `$ARGUMENTS` is non-empty, use it as the inbox path. Otherwise default to `wiki/inbox/_session.md` — the live session state populated by the inbox-update skill.
+The inbox path resolves at runtime as `${ARGUMENTS:-wiki/inbox/_session.md}` — if `$ARGUMENTS` is non-empty (the user passed an alternative inbox path), use it; otherwise default to `wiki/inbox/_session.md`, the live session state populated by the inbox-update skill. Each bash injection below resolves this inline (Claude Code's `!` injections don't share shell state across blocks, so the variable must be set inside each block).
 
 ## Step 1 — Confirm the inbox exists and inspect it
 
 Read the resolved inbox path. If the file does not exist: print "No inbox found at <path>; nothing to digest." and exit. This is not an error.
 
 Count the entry handle lines:
-!`grep -cE '^@ (ARCHITECTURE|FUNCTIONS|RESEARCH|SELF|DIAGRAMS)::' "$INBOX_PATH" || echo 0`
+!`P="${ARGUMENTS:-wiki/inbox/_session.md}"; grep -cE '^@ (ARCHITECTURE|FUNCTIONS|RESEARCH|SELF|DIAGRAMS)::' "$P" 2>/dev/null || echo 0`
 
 If the count is zero, this digest is a no-op (DIGS-12 idempotence). Still archive the empty file in Step 2 (D-14: archive THEN write, with no exception). After archiving, print "Inbox is empty (0 entries); idempotent no-op." and exit.
 
@@ -35,7 +35,7 @@ Create the archive directory if it does not exist:
 !`mkdir -p wiki/inbox/_archive`
 
 Copy the inbox to the archive:
-!`cp "$INBOX_PATH" "wiki/inbox/_archive/$(date +%Y-%m-%dT%H%M)-session.md"`
+!`P="${ARGUMENTS:-wiki/inbox/_session.md}"; cp "$P" "wiki/inbox/_archive/$(date +%Y-%m-%dT%H%M)-session.md"`
 
 Verify the copy succeeded by re-reading the archive file. If it failed, ABORT — do not proceed to writes. The crash-safety guarantee depends on the archive existing before any new note write.
 
@@ -48,7 +48,7 @@ The curator needs: (a) the inbox content, (b) the existing wiki tree, (c) wiki/R
 Inputs:
 
 - Inbox content:
-  !`cat "$INBOX_PATH"`
+  !`P="${ARGUMENTS:-wiki/inbox/_session.md}"; cat "$P"`
 
 - Existing wiki tree (excluding inbox/ and _templates/):
   !`find wiki -type f -name '*.md' -not -path 'wiki/inbox/*' -not -path 'wiki/_templates/*' | sort`
@@ -86,7 +86,26 @@ For each unique `[[X]]` reference (or `[[X|alias]]` — strip the `|alias` part)
 
 Per D-08: this audit covers BOTH pre-existing dangling links AND any links the curator failed to rewrite during a split. It is the safety net.
 
-## Step 6 — Emit the digest summary
+## Step 6 — Reset the live inbox
+
+After the curator's writes succeeded and the post-write audit completed, reset `wiki/inbox/_session.md` to the empty canonical template. The inbox is a derived view of work-not-yet-filed; once those entries are archived AND filed into `wiki/<CATEGORY>/` notes, they no longer belong in the live inbox. Without this reset, the next session's `inbox-update` would see stale entries that already correspond to filed notes, and the next `/wiki-digest` would re-process them (idempotent via same-concept detection, but wasteful and noisy).
+
+Use Write to overwrite `wiki/inbox/_session.md` with exactly:
+
+```markdown
+# Session Inbox
+
+**Status**: live session state
+**Purpose**: state-of-the-world mirror of what exists in the codebase this session. The codebase is ground truth; this file is a derived view.
+
+---
+```
+
+This matches the canonical template that the `inbox-update` skill creates on first use (see its "Self-creation guard" section).
+
+**Skip the reset** ONLY if the curator aborted mid-run or the post-write audit surfaced unrecoverable errors — in that case the user needs the inbox preserved to retry. The archive in Step 2 is the crash-safety net; the reset is a normal-path lifecycle action that depends on success.
+
+## Step 7 — Emit the digest summary
 
 Final output to the user:
 
@@ -102,15 +121,17 @@ Final output to the user:
 **Rule-change proposals (NOT applied — for user to consider):** <list>
 **Unresolved wiki-links:** <list, or "none">
 **Topic-index updated:** <list of topic bullets added/edited, or "no change">
+**Live inbox:** reset to empty template (or: "preserved — curator/audit reported errors, see above")
 ```
 
 ## Non-fork fallback (D-13)
 
-If the user's environment has `CLAUDE_CODE_FORK_SUBAGENT=0` (or unset, depending on Claude Code version), `context: fork` falls back to inline execution and the fork isolation is lost. The procedure for invoking wiki-curator without forking is documented at `.claude/skills/digest/reference/non-fork-fallback.md`. The curator's protocol is identical; only the invocation path changes.
+If the user's environment has `CLAUDE_CODE_FORK_SUBAGENT=0` (or unset, depending on Claude Code version), `context: fork` falls back to inline execution and the fork isolation is lost. The procedure for invoking wiki-curator without forking is documented at `.claude/skills/wiki-digest/reference/non-fork-fallback.md`. The curator's protocol is identical; only the invocation path changes.
 
 ## Things this skill does NOT do
 
 - Does NOT route, template, or detect duplicates itself — that's the curator's job.
 - Does NOT modify `wiki/Rules.md` (DIGS-13).
 - Does NOT auto-commit anything (anti-feature A11).
-- Does NOT write to `wiki/inbox/_session.md` after digest — the inbox-update skill owns that. This skill leaves the live inbox path untouched after archiving (the curator may truncate it as part of the LIFE-02 lifecycle reset, but ongoing content writing belongs to inbox-update).
+- Does NOT preserve filed entries in `wiki/inbox/_session.md` after a successful digest. Step 6 resets the live inbox to its empty template once the curator's writes succeeded and the post-write audit passed. Subsequent edits/writes to `_session.md` belong to the `inbox-update` skill (the lifecycle is: inbox-update appends → /wiki-digest archives + files + resets → inbox-update appends fresh entries from the next turn).
+- Does NOT reset the live inbox if the curator aborted mid-run or the audit surfaced unrecoverable errors. In failure cases the inbox is preserved so the user can retry; the Step 2 archive is always the crash-safety net.

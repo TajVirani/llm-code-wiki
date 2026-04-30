@@ -99,7 +99,7 @@ entry_count=$(grep -c "^@ " wiki/inbox/_session.md 2>/dev/null || echo 0)
 
 Trigger a full sweep if EITHER:
 - `entry_count` > 50, OR
-- The user's most recent prompt invoked or mentioned `/digest` (pre-digest sweep)
+- The user's most recent prompt invoked or mentioned `/wiki-digest` (pre-digest sweep)
 
 **Full sweep protocol:** For every entry in the inbox:
 1. Extract the `path` field from the handle line.

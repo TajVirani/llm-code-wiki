@@ -107,7 +107,7 @@ If a user request appears to conflict with these rules, surface the conflict bef
 
 ### 11. The `topic-index.md` file is auto-maintained
 
-`wiki/topic-index.md` is the recall navigation map. It is rebuilt by the curator at the end of every `/digest` run (see §6 Step 8). One bullet per topic, format:
+`wiki/topic-index.md` is the recall navigation map. It is rebuilt by the curator at the end of every `/wiki-digest` run (see §6 Step 8). One bullet per topic, format:
 
 ```
 - **topic-name** — One-sentence summary (≤25 words). Files: PATH1, PATH2
@@ -123,7 +123,7 @@ Rules:
 - Alphabetized by topic name for stable diffs.
 - Hard cap: ≤ 100 entries.
 
-The recall agent (`wiki-recall`) reads this file as the entry point for every `/recall` and every UserPromptSubmit-triggered recall. Keeping it small and accurate is what makes recall fast.
+The recall agent (`wiki-recall`) reads this file as the entry point for every `/wiki-recall` and every UserPromptSubmit-triggered recall. Keeping it small and accurate is what makes recall fast.
 
 ## Related Notes
 

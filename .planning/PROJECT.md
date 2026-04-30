@@ -12,17 +12,17 @@ Code documentation stays current and coherent without manual upkeep — includin
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Stop hook triggers an inbox-update prompt after each Claude turn — v1.0 (CAPT-01)
+- ✓ In-session skill defines rolling inbox maintenance (atomic flat entries, state-of-world, self-pruning) — v1.0 (CAPT-02..07)
+- ✓ Digest skill / slash command spawns curator sub-agent and routes entries per Rules.md — v1.0 (DIGS-01..13)
+- ✓ Rolling per-project inbox lifecycle with archive-before-write — v1.0 (LIFE-01..03)
+- ✓ Curator routes from inbox alone with no session memory required — v1.0 (DIGS-02 fork + non-fork fallback)
+- ✓ Self-pruning works for code artifacts removed mid-session (1+1-then-deleted release blocker) — v1.0 (CAPT-04 validated end-to-end)
+- ✓ Bootstrap flow via `/wiki-install` skill — v1.0 (INST-01 reframed, INST-02, INST-03)
 
 ### Active
 
-- [ ] Hook config that triggers an inbox-update prompt after each Claude turn
-- [ ] In-session skill defining how Claude updates the rolling inbox (atomic entries, flat structure, state-of-the-world semantics, self-pruning)
-- [ ] Digest skill / slash command that spawns a sub-agent to convert inbox entries into filed wiki notes per `Rules.md`
-- [ ] Inbox file lifecycle: rolling per-project file, archived on digest, fresh start after
-- [ ] Sub-agent has enough context from inbox alone to make correct routing decisions (no session memory required)
-- [ ] Self-pruning works for code artifacts removed mid-session (the "1+1 function created then deleted" case)
-- [ ] Installation flow: skills + hook can be dropped into another repo alongside an existing wiki/ structure
+(None — v1.0 shipped. Run `/gsd-new-milestone` to define v1.1 scope.)
 
 ### Out of Scope
 
@@ -52,12 +52,18 @@ Code documentation stays current and coherent without manual upkeep — includin
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Inbox = state-of-the-world doc, not chronological log | Pruning is natural — when a function is deleted, its entry is removed; no contradiction between past events | — Pending |
-| Atomic, flat entries (no in-session sectioning) | Lowers categorization burden during the session; digest agent routes holistically with full context | — Pending |
-| Stop hook trigger (not PostToolUse) | One coherent inbox update per logical unit of work; Claude summarizes the turn rather than narrating every tool call | — Pending |
-| Rolling per-project inbox, manual digest | Features rarely end at session boundaries; explicit digest gives a review checkpoint | — Pending |
-| Multi-skill split (inbox upkeep + digest) | Different audiences (running Claude vs. fresh sub-agent), different triggers, different instructions | — Pending |
-| Stop hook injection mechanism = decision:"block" + reason | Smoke test marker NOT visible on next turn (additionalContext silently dropped); docs at code.claude.com/docs/en/hooks whitelist additionalContext for SessionStart/Setup/SubagentStart/UserPromptSubmit/UserPromptExpansion/PreToolUse/PostToolUse/PostToolUseFailure/PostToolBatch — Stop is NOT in this list for synchronous hooks (verified live 2026-04-29). | Locked 2026-04-29 |
+| Inbox = state-of-the-world doc, not chronological log | Pruning is natural — when a function is deleted, its entry is removed; no contradiction between past events | ✓ Good (v1.0 — validated by CAPT-04 release blocker) |
+| Atomic, flat entries (no in-session sectioning) | Lowers categorization burden during the session; digest agent routes holistically with full context | ✓ Good (v1.0) |
+| Stop hook trigger (not PostToolUse) | One coherent inbox update per logical unit of work; Claude summarizes the turn rather than narrating every tool call | ✓ Good (v1.0 — live smoke test passed) |
+| Rolling per-project inbox, manual digest | Features rarely end at session boundaries; explicit digest gives a review checkpoint | ✓ Good (v1.0) |
+| Multi-skill split (inbox upkeep + digest) | Different audiences (running Claude vs. fresh sub-agent), different triggers, different instructions | ✓ Good (v1.0) |
+| Stop hook injection mechanism = decision:"block" + reason | Smoke test marker NOT visible on next turn (additionalContext silently dropped); docs at code.claude.com/docs/en/hooks whitelist additionalContext for SessionStart/Setup/SubagentStart/UserPromptSubmit/UserPromptExpansion/PreToolUse/PostToolUse/PostToolUseFailure/PostToolBatch — Stop is NOT in this list for synchronous hooks (verified live 2026-04-29). | ✓ Good (Locked 2026-04-29; loop-protection trifecta in v1.0 hook script) |
+| Hybrid override routing (curator) | Handle is default; content can override; overrides surfaced in plan. Phase 1 D-01. | ✓ Good (v1.0 fixture validated) |
+| Auto-rewrite of `[[Title]]` backlinks on rename/split | Cleanest end-state vs. hub-note pattern; per-link target picked by surrounding context for splits. Phase 1 D-05/D-06. | ✓ Good (v1.0 — preserves aliases per D-07) |
+| RESEARCH/ folder is curator-side read-only | Research is grounded source of truth; agents emit ALERT rows on same-concept hits instead of EDIT. Phase 1 D-19. | ⚠️ Revisit (decision captured; curator prompt enforcement deferred — see v1.0 audit tech debt) |
+| Scratch-list + reconcile diff-pass (inbox-update) | Cheap per-turn cost (O(things-touched-this-turn)); evidence-grounded entries by construction. Phase 2 D-01. | ✓ Good (v1.0) |
+| Hybrid pruning: cheap default + opportunistic full sweep | Most turns pay O(scratch-list); full sweep at >50 entries OR pre-digest catches out-of-band drift. Phase 2 D-02. | ✓ Good (v1.0) |
+| `/wiki-install` skill (not bash installer) | Distribution of `.claude/` tree handled upstream (plugin/marketplace/manual); `/wiki-install` does only project-specific bootstrap. Phase 4 D-13. | ✓ Good (v1.0 — INST-01 reframed) |
 
 ## Evolution
 
@@ -77,4 +83,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-28 after initialization*
+*Last updated: 2026-04-29 after v1.0 milestone shipped*

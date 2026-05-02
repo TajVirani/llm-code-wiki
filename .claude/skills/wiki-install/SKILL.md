@@ -1,212 +1,118 @@
 ---
 name: wiki-install
-description: Bootstrap a project to use the auto-wiki system. Creates wiki/, _templates/note.md, Rules.md, inbox/, merges the Stop hook entry into .claude/settings.json, and appends an Auto-maintained wiki section to CLAUDE.md. Idempotent — skips and logs anything that already exists. Run once after the .claude/ tree is in place.
+description: Bootstrap a project to use the auto-wiki system. Verifies the .claude/ tree is in place, materializes wiki/ scaffolding (inbox, topic-index seed), merges Stop + UserPromptSubmit hooks into .claude/settings.json, appends an Auto-maintained wiki section to CLAUDE.md, runs hook smoke tests, and stamps the installed version. Idempotent — re-running is safe and converges to the canonical state. Run once after the .claude/ tree is in place.
 disable-model-invocation: true
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Bash
+allowed-tools: Read, Edit, Glob, Bash
 ---
 
 # /wiki-install — Bootstrap the auto-wiki system
 
-Run this skill once after the `.claude/` tree (skills, agents, hook) has been copied into the target project. It creates the wiki scaffolding, merges the Stop hook entry into `.claude/settings.json`, and appends a documentation section to `CLAUDE.md`. Every step is idempotent — re-running after a partial install is safe.
+Run this skill once after the `.claude/` tree (skills, agents, hooks, install templates) has been copied into the target project (via plugin install, `/wiki-update` from a prior version, or the remote-install manifest fetch in INSTALL.md). It creates the `wiki/` scaffolding, merges hook entries into `.claude/settings.json`, appends a documentation section to `CLAUDE.md`, runs smoke tests, and stamps the installed version.
 
-## Step 0 — Precondition check
+**Design:** five Bash blocks, zero Write/Edit calls. All static content is sourced from shipped template files under `.claude/skills/wiki-install/templates/` rather than inlined-then-Written, which collapses the install to ~5 permission prompts (down from ~20). Re-runs are idempotent: settings.json is upserted (existing matching hook entries are removed and re-added with canonical content), CLAUDE.md skips when the section is already present, and `wiki/` files use skip-if-exists semantics so user customizations are preserved.
 
-Verify the required `.claude/` files are present and both hooks are executable:
+The two **user-meaningful** approval prompts are Block 2 (settings.json merge) and Block 3 (CLAUDE.md append). The other three blocks are mechanical and can be allowlisted via Claude Code's permission system.
+
+## Block 1 — Precondition + scaffold creation
+
+Verifies the required `.claude/` files are present and both hooks are executable, then materializes the `wiki/` scaffolding. Aborts with a clear "re-run remote install" pointer if any required file is missing — there is no inline fallback content (templates ship via `dist-manifest.txt`).
 
 ```bash
+set -e
+
+STATUS_FILE=/tmp/lcw-install-status.txt
+: > "$STATUS_FILE"
+record() { printf '%s=%s\n' "$1" "$2" >> "$STATUS_FILE"; }
+
+# --- Precondition: required .claude/ files + executable hooks ---
 for f in \
   "$CLAUDE_PROJECT_DIR/.claude/skills/inbox-update/SKILL.md" \
   "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-digest/SKILL.md" \
   "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-recall/SKILL.md" \
+  "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md" \
+  "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/templates/topic-index.seed.md" \
   "$CLAUDE_PROJECT_DIR/.claude/agents/wiki-curator.md" \
   "$CLAUDE_PROJECT_DIR/.claude/agents/wiki-recall.md" \
   "$CLAUDE_PROJECT_DIR/.claude/hooks/inbox-stop.sh" \
   "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh"; do
-  test -f "$f" || { echo "[wiki-install] ABORT: $f not found. Copy the .claude/ tree before running /wiki-install."; exit 1; }
+  test -f "$f" || { echo "[wiki-install] ABORT: $f not found. Re-run remote install (INSTALL.md) or copy the .claude/ tree."; exit 1; }
 done
-test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/inbox-stop.sh" || { echo "[wiki-install] ABORT: inbox-stop.sh exists but is not executable. Run: chmod +x .claude/hooks/inbox-stop.sh"; exit 1; }
-test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh" || { echo "[wiki-install] ABORT: recall-prompt.sh exists but is not executable. Run: chmod +x .claude/hooks/recall-prompt.sh"; exit 1; }
-echo "[wiki-install] Precondition check passed — .claude/ tree is in place."
-```
+test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/inbox-stop.sh" || \
+  { echo "[wiki-install] ABORT: inbox-stop.sh not executable. Run: chmod +x .claude/hooks/inbox-stop.sh"; exit 1; }
+test -x "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh" || \
+  { echo "[wiki-install] ABORT: recall-prompt.sh not executable. Run: chmod +x .claude/hooks/recall-prompt.sh"; exit 1; }
+echo "[wiki-install] Precondition check passed."
 
-If any file is missing, the skill aborts immediately. This catches the "ran before the plugin was copied" failure mode.
-
-**Note on skill/agent name collisions:** This skill assumes the `.claude/` tree was copied cleanly into the target project. If the target had pre-existing skills with names matching ours (`wiki-install`, `inbox-update`, `digest`, `recall`, `wiki-rules`) or agents named `wiki-curator` / `wiki-recall`, those would have been overwritten by the upstream copy step (plugin install, manual copy, marketplace, etc.). The distribution mechanism is responsible for surfacing those collisions to the user. `/wiki-install`'s precondition check only verifies our required files are present and both hooks are executable — it does NOT detect content drift or naming collisions inherited from the upstream copy.
-
-## Step 1 — wiki/ directory (D-03)
-
-Check whether `wiki/` exists:
-
-```bash
-if test -d "$CLAUDE_PROJECT_DIR/wiki"; then
-  echo "[wiki-install] wiki/ already exists, skipping"
+# --- wiki/ ---
+if [ -d "$CLAUDE_PROJECT_DIR/wiki" ]; then
+  record WIKI_DIR "already existed"
+  echo "[wiki-install] wiki/ exists, skipping"
 else
   mkdir -p "$CLAUDE_PROJECT_DIR/wiki"
+  record WIKI_DIR "created"
   echo "[wiki-install] Created wiki/"
 fi
-```
 
-## Step 2 — wiki/_templates/note.md (D-04)
-
-Check whether the note template exists:
-
-```bash
-if test -f "$CLAUDE_PROJECT_DIR/wiki/_templates/note.md"; then
-  echo "[wiki-install] wiki/_templates/note.md already exists, skipping (user customization preserved)"
+# --- wiki/_templates/note.md (must already exist via manifest fetch) ---
+mkdir -p "$CLAUDE_PROJECT_DIR/wiki/_templates"
+if [ -f "$CLAUDE_PROJECT_DIR/wiki/_templates/note.md" ]; then
+  record NOTE_TPL "already existed"
+  echo "[wiki-install] wiki/_templates/note.md exists, skipping (user customization preserved)"
 else
-  mkdir -p "$CLAUDE_PROJECT_DIR/wiki/_templates"
-  echo "[wiki-install] Creating wiki/_templates/note.md..."
-fi
-```
-
-If the file is absent, use Write to create `wiki/_templates/note.md` with the canonical template content (Read the source from this repo's `wiki/_templates/note.md` first; if unavailable, use the standard shape below):
-
-```markdown
-
-**Summary**: One sentence describing this note.
-**Tags**: #topic1 #topic2
-**Created**: ISO-8601 timestamp
-**Last Updated**: ISO-8601 timestamp
-
----
-
-## Content
-
-Main content here.
-
-## Related Notes
-
-- [[Other Note Title]]
-```
-
-After writing:
-
-```bash
-echo "[wiki-install] Created wiki/_templates/note.md"
-```
-
-## Step 3 — wiki/Rules.md (D-05)
-
-Check whether `wiki/Rules.md` exists:
-
-```bash
-if test -f "$CLAUDE_PROJECT_DIR/wiki/Rules.md"; then
-  echo "[wiki-install] wiki/Rules.md already exists, skipping (user contract preserved)"
-else
-  echo "[wiki-install] Creating wiki/Rules.md..."
-fi
-```
-
-If absent, Read this repo's `wiki/Rules.md` to get the canonical content, then Write it to `$CLAUDE_PROJECT_DIR/wiki/Rules.md`. If unavailable (e.g., this skill was fetched standalone via remote install and the source repo isn't checked out), the remote-install flow's manifest fetch should already have placed `wiki/Rules.md` at the target before this step runs — so reaching this step with the file absent indicates a partial install. In that case, abort with a clear error pointing the user back to `dist-manifest.txt`:
-
-```bash
-if test ! -f "$CLAUDE_PROJECT_DIR/wiki/Rules.md"; then
-  echo "[wiki-install] ABORT: wiki/Rules.md is required but not present and no source content available."
-  echo "[wiki-install] Re-run the remote install (see INSTALL.md 'Remote install') or copy wiki/Rules.md manually from the source repo."
+  echo "[wiki-install] ABORT: wiki/_templates/note.md missing. Re-run remote install (manifest places this file)."
   exit 1
 fi
-```
 
-After writing (or if the file was placed by remote-install fetch and Step 3 already skipped):
+# --- wiki/Rules.md (must already exist via manifest fetch) ---
+if [ -f "$CLAUDE_PROJECT_DIR/wiki/Rules.md" ]; then
+  record RULES "already existed"
+  echo "[wiki-install] wiki/Rules.md exists, skipping (user contract preserved)"
+else
+  echo "[wiki-install] ABORT: wiki/Rules.md missing. Re-run remote install (manifest places this file)."
+  exit 1
+fi
 
-```bash
-echo "[wiki-install] Created wiki/Rules.md"
-```
-
-Never overwrite an existing `wiki/Rules.md` — the user may have customized their rules contract.
-
-## Step 4 — wiki/inbox/ directory (D-06)
-
-Check whether the inbox directory exists:
-
-```bash
-if test -d "$CLAUDE_PROJECT_DIR/wiki/inbox"; then
-  echo "[wiki-install] wiki/inbox/ already exists, skipping"
+# --- wiki/inbox/ ---
+if [ -d "$CLAUDE_PROJECT_DIR/wiki/inbox" ]; then
+  record INBOX "already existed"
+  echo "[wiki-install] wiki/inbox/ exists, skipping"
 else
   mkdir -p "$CLAUDE_PROJECT_DIR/wiki/inbox"
+  record INBOX "created"
   echo "[wiki-install] Created wiki/inbox/"
 fi
-```
 
-## Step 4b — wiki/topic-index.md (recall navigation map)
-
-Check whether the recall index exists:
-
-```bash
-if test -f "$CLAUDE_PROJECT_DIR/wiki/topic-index.md"; then
-  echo "[wiki-install] wiki/topic-index.md already exists, skipping (user content preserved)"
+# --- wiki/topic-index.md (materialized from shipped seed template) ---
+SEED="$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/templates/topic-index.seed.md"
+if [ -f "$CLAUDE_PROJECT_DIR/wiki/topic-index.md" ]; then
+  record TOPIC_INDEX "already existed"
+  echo "[wiki-install] wiki/topic-index.md exists, skipping (user content preserved)"
 else
-  echo "[wiki-install] Creating wiki/topic-index.md..."
+  TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  sed -e "s|<<CREATED_TS>>|$TS|g" -e "s|<<UPDATED_TS>>|$TS|g" "$SEED" \
+    > "$CLAUDE_PROJECT_DIR/wiki/topic-index.md"
+  record TOPIC_INDEX "created"
+  echo "[wiki-install] Created wiki/topic-index.md from seed template"
 fi
 ```
 
-If absent, use Write to create `$CLAUDE_PROJECT_DIR/wiki/topic-index.md` with the canonical empty seed below. This content is the authoritative seed — `wiki/topic-index.md` is intentionally NOT shipped via the distribution manifest because the source repo's copy is populated with dogfood bullets that don't apply to fresh installs.
+## Block 2 — settings.json merge (Stop + UserPromptSubmit unified)
 
-```markdown
+Registers both hooks in `.claude/settings.json`. Case A (file absent) writes a fresh canonical structure via heredoc. Case B/C (file present) requires `jq` and runs a single parametrized `upsert_hook` filter for both events — the filter removes any existing matching entries (by command-substring) and appends the canonical entry, so re-runs converge to a zero-content-diff. The literal `$CLAUDE_PROJECT_DIR` token must survive (B3 verification) — shell expansion would write a hardcoded install-time path that breaks portability.
 
-**Summary**: Greppable topic-to-files index — entry point for wiki recall.
-**Tags**: #wiki #index #recall
-**Created**: <FILL ISO-8601 timestamp at write time>
-**Last Updated**: <SAME timestamp as Created>
-
----
-
-## Content
-
-<!--
-Auto-maintained by `/wiki-digest`. One bullet per topic. Format:
-  - **topic** — One sentence (≤25 words) describing what the topic covers. Files: PATH1, PATH2
-
-Rules:
-- Topic name in **bold**, kebab-case.
-- Summary describes what the topic *covers*, not what each file says.
-- Files: comma-separated relative paths from wiki/ root. No [[wiki-link]] syntax — paths are explicit so grep returns precise hits.
-- No nesting, sub-bullets, or extra prose. Split a topic into two if it grows beyond one line.
-- Alphabetized by topic name for stable diffs.
-- Hard cap: ≤100 entries.
-
-Do not edit by hand — bullets that are not the result of a digest run will be overwritten on the next /wiki-digest.
--->
-
-## Related Notes
-
-- [[Rules]]
-```
-
-The seed contains only front-matter, the HTML maintenance comment, and a single `Related Notes` link. `/wiki-digest` (curator Step 9) populates the bullet list as notes accumulate.
-
-After writing:
+**This block writes to `.claude/settings.json` — the user's settings-merge approval prompt.**
 
 ```bash
-echo "[wiki-install] Created wiki/topic-index.md"
-```
+set -e
+SETTINGS="$CLAUDE_PROJECT_DIR/.claude/settings.json"
+STATUS_FILE=/tmp/lcw-install-status.txt
+record() { printf '%s=%s\n' "$1" "$2" >> "$STATUS_FILE"; }
 
-Never overwrite an existing `wiki/topic-index.md` — bullets the user has filed via prior digests would be lost.
-
-## Step 5 — settings.json merge (D-07 three-case logic)
-
-The hook entry to inject is:
-
-```json
-{
-  "type": "command",
-  "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/inbox-stop.sh",
-  "timeout": 10
-}
-```
-
-**Case A — settings.json absent:**
-
-```bash
-if test ! -f "$CLAUDE_PROJECT_DIR/.claude/settings.json"; then
-  echo "[wiki-install] Creating .claude/settings.json with Stop + UserPromptSubmit hook entries..."
-fi
-```
-
-Use Write to create `.claude/settings.json` with the full canonical structure (both hooks at once):
-
-```json
+if [ ! -f "$SETTINGS" ]; then
+  # Case A: file absent — create fresh with both hooks (no jq needed)
+  mkdir -p "$(dirname "$SETTINGS")"
+  cat > "$SETTINGS" <<'JSON'
 {
   "hooks": {
     "Stop": [
@@ -233,279 +139,198 @@ Use Write to create `.claude/settings.json` with the full canonical structure (b
     ]
   }
 }
-```
-
-Then:
-
-```bash
-echo "[wiki-install] Created .claude/settings.json with Stop and UserPromptSubmit hook entries"
-```
-
-Skip Step 5b below — Case A already registered the recall hook.
-
-**Case B — settings.json present, already has inbox-stop.sh entry:**
-
-```bash
-if grep -q "inbox-stop.sh" "$CLAUDE_PROJECT_DIR/.claude/settings.json"; then
-  echo "[wiki-install] Stop hook already registered in settings.json, skipping (user hook preserved)"
-fi
-```
-
-Skip entirely — do not add a duplicate.
-
-**Case C — settings.json present, no inbox-stop.sh entry (merge needed):**
-
-First check for jq:
-
-```bash
-if ! command -v jq >/dev/null 2>&1; then
-  echo "[wiki-install] ABORT: jq is required to merge the Stop hook entry into your existing .claude/settings.json. Install jq and re-run /wiki-install, OR manually add the hook entry documented in .claude/skills/wiki-install/SETTINGS-SNIPPET.md"
-  exit 1
-fi
-```
-
-If jq is present, merge using `--arg` so the literal `$CLAUDE_PROJECT_DIR` token is preserved in JSON output (NOT shell-expanded). This preserves portability across machines — a hardcoded install-time path would break on every other developer's machine.
-
-If `.hooks.Stop[0].hooks` already exists:
-
-```bash
-HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/inbox-stop.sh'
-jq --arg cmd "$HOOK_CMD" '.hooks.Stop[0].hooks += [{"type":"command","command":$cmd,"timeout":10}]' \
-  "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/wiki-install-settings-tmp.json \
-  && mv /tmp/wiki-install-settings-tmp.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
-```
-
-If `.hooks.Stop` key is absent (create it):
-
-```bash
-HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/inbox-stop.sh'
-jq --arg cmd "$HOOK_CMD" '.hooks = (.hooks // {}) | .hooks.Stop = (.hooks.Stop // [{"hooks":[]}]) | .hooks.Stop[0].hooks += [{"type":"command","command":$cmd,"timeout":10}]' \
-  "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/wiki-install-settings-tmp.json \
-  && mv /tmp/wiki-install-settings-tmp.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
-```
-
-**Verify after merge (B3 check):** Confirm the literal token survived — shell expansion would have written a hardcoded path that breaks portability:
-
-```bash
-if grep -q '"$CLAUDE_PROJECT_DIR"' "$CLAUDE_PROJECT_DIR/.claude/settings.json"; then
-  echo "[wiki-install] Merged Stop hook entry into existing .claude/settings.json"
+JSON
+  record SETTINGS_STOP "created"
+  record SETTINGS_RECALL "created"
+  echo "[wiki-install] Created .claude/settings.json with Stop + UserPromptSubmit hook entries."
 else
-  echo "[wiki-install] ABORT: Post-merge verification failed — settings.json contains a hardcoded path instead of the literal \$CLAUDE_PROJECT_DIR token. Restore your original settings.json from backup and re-run /wiki-install."
+  # Case B/C: file exists — require jq, then upsert each hook idempotently
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "[wiki-install] ABORT: jq required to merge .claude/settings.json. Install jq, OR apply the manual snippet from .claude/skills/wiki-install/SETTINGS-SNIPPET.md and re-run."
+    exit 1
+  fi
+
+  # Detect prior state for status reporting before mutating
+  if grep -q "inbox-stop.sh" "$SETTINGS"; then STATUS_STOP="re-merged (replaced existing)"; else STATUS_STOP="merged"; fi
+  if grep -q "recall-prompt.sh" "$SETTINGS"; then STATUS_RECALL="re-merged (replaced existing)"; else STATUS_RECALL="merged"; fi
+
+  # Helper: upsert one hook entry (event=Stop|UserPromptSubmit, script=basename used in `contains`, cmd=literal command string)
+  upsert_hook() {
+    local event="$1" script="$2" cmd="$3"
+    jq --arg event "$event" --arg script "$script" --arg cmd "$cmd" '
+      .hooks //= {}
+      | .hooks[$event] //= [{"hooks":[]}]
+      | .hooks[$event] |= (
+          map(.hooks |= (map(select((.command // "") | contains($script) | not))))
+        )
+      | (.hooks[$event][0].hooks //= [])
+      | .hooks[$event][0].hooks += [{"type":"command","command":$cmd,"timeout":10}]
+    ' "$SETTINGS" > /tmp/lcw-settings.json && mv /tmp/lcw-settings.json "$SETTINGS"
+  }
+
+  upsert_hook "Stop" "inbox-stop.sh" '"$CLAUDE_PROJECT_DIR"/.claude/hooks/inbox-stop.sh'
+  upsert_hook "UserPromptSubmit" "recall-prompt.sh" '"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh'
+
+  # B3 verification: literal $CLAUDE_PROJECT_DIR token must survive in both entries
+  if grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/inbox-stop.sh' "$SETTINGS" \
+     && grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh' "$SETTINGS"; then
+    record SETTINGS_STOP "$STATUS_STOP"
+    record SETTINGS_RECALL "$STATUS_RECALL"
+    echo "[wiki-install] settings.json: Stop hook $STATUS_STOP; UserPromptSubmit hook $STATUS_RECALL."
+  else
+    echo "[wiki-install] ABORT: post-merge verification failed — \$CLAUDE_PROJECT_DIR token missing from settings.json. Restore from backup and re-run."
+    exit 1
+  fi
+fi
+```
+
+**No-jq fallback:** if `jq` is unavailable and the user can't install it, follow `.claude/skills/wiki-install/SETTINGS-SNIPPET.md` to apply the merge by hand, then re-run `/wiki-install`.
+
+## Block 3 — CLAUDE.md section append
+
+Appends the canonical "## Auto-maintained wiki" section from `.claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md`. Three branches: no `CLAUDE.md` → create with section; `CLAUDE.md` exists, section absent → append; `CLAUDE.md` exists, section present → skip. Install-time only ever appends — `/wiki-update` is the path that actively replaces the section.
+
+**This block writes to `CLAUDE.md` — the user's CLAUDE.md-append approval prompt.**
+
+```bash
+set -e
+CLAUDE_MD="$CLAUDE_PROJECT_DIR/CLAUDE.md"
+SECTION_TPL="$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md"
+STATUS_FILE=/tmp/lcw-install-status.txt
+record() { printf '%s=%s\n' "$1" "$2" >> "$STATUS_FILE"; }
+
+if [ ! -f "$SECTION_TPL" ]; then
+  echo "[wiki-install] ABORT: canonical CLAUDE.md section template missing at $SECTION_TPL."
+  echo "[wiki-install] Re-run remote install (manifest places this file)."
   exit 1
 fi
-```
 
-## Step 5b — settings.json: register UserPromptSubmit hook (recall)
-
-If Case A from Step 5 ran (settings.json was created fresh), skip this step entirely — the recall hook is already registered.
-
-Otherwise the file existed; check whether `recall-prompt.sh` is registered.
-
-**Case B' — already registered:**
-
-```bash
-if grep -q "recall-prompt.sh" "$CLAUDE_PROJECT_DIR/.claude/settings.json"; then
-  echo "[wiki-install] UserPromptSubmit hook already registered in settings.json, skipping (user hook preserved)"
-fi
-```
-
-Skip — do not add a duplicate.
-
-**Case C' — needs merge (jq required):**
-
-```bash
-if ! command -v jq >/dev/null 2>&1; then
-  echo "[wiki-install] ABORT: jq is required to merge the UserPromptSubmit hook entry into your existing .claude/settings.json. Install jq and re-run /wiki-install, OR manually add the hook entry documented in .claude/skills/wiki-install/SETTINGS-SNIPPET.md"
-  exit 1
-fi
-```
-
-If `.hooks.UserPromptSubmit[0].hooks` already exists:
-
-```bash
-HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh'
-jq --arg cmd "$HOOK_CMD" '.hooks.UserPromptSubmit[0].hooks += [{"type":"command","command":$cmd,"timeout":10}]' \
-  "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/wiki-install-settings-tmp.json \
-  && mv /tmp/wiki-install-settings-tmp.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
-```
-
-If `.hooks.UserPromptSubmit` key is absent (create it):
-
-```bash
-HOOK_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh'
-jq --arg cmd "$HOOK_CMD" '.hooks = (.hooks // {}) | .hooks.UserPromptSubmit = (.hooks.UserPromptSubmit // [{"hooks":[]}]) | .hooks.UserPromptSubmit[0].hooks += [{"type":"command","command":$cmd,"timeout":10}]' \
-  "$CLAUDE_PROJECT_DIR/.claude/settings.json" > /tmp/wiki-install-settings-tmp.json \
-  && mv /tmp/wiki-install-settings-tmp.json "$CLAUDE_PROJECT_DIR/.claude/settings.json"
-```
-
-**Verify after merge:** confirm the literal `$CLAUDE_PROJECT_DIR` token survived (same B3 check):
-
-```bash
-if grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh' "$CLAUDE_PROJECT_DIR/.claude/settings.json"; then
-  echo "[wiki-install] Merged UserPromptSubmit hook entry into existing .claude/settings.json"
+if [ ! -f "$CLAUDE_MD" ]; then
+  cat "$SECTION_TPL" > "$CLAUDE_MD"
+  record CLAUDE_MD "created"
+  echo "[wiki-install] Created CLAUDE.md with Auto-maintained wiki section."
+elif grep -q '^## Auto-maintained wiki[[:space:]]*$' "$CLAUDE_MD"; then
+  record CLAUDE_MD "section already present"
+  echo "[wiki-install] CLAUDE.md already documents auto-wiki, skipping."
 else
-  echo "[wiki-install] ABORT: Post-merge verification failed for UserPromptSubmit hook — settings.json may contain a hardcoded path. Restore your original settings.json from backup and re-run /wiki-install."
-  exit 1
+  printf '\n' >> "$CLAUDE_MD"
+  cat "$SECTION_TPL" >> "$CLAUDE_MD"
+  record CLAUDE_MD "section appended"
+  echo "[wiki-install] Appended Auto-maintained wiki section to CLAUDE.md."
 fi
 ```
 
-## Step 6 — CLAUDE.md entry (D-09, D-10)
+## Block 4 — Smoke tests + version stamp
 
-Check whether the section already exists:
+Three smoke tests verify hook execution and inbox writability, then the installed version is stamped. Any FAIL outcome aborts the skill with `exit 1` so the final summary block does not run.
 
-```bash
-if grep -q "## Auto-maintained wiki" "$CLAUDE_PROJECT_DIR/CLAUDE.md" 2>/dev/null; then
-  echo "[wiki-install] CLAUDE.md already documents auto-wiki, skipping"
-fi
-```
-
-If `CLAUDE.md` does not exist, create it containing only the section below (create mode). If `CLAUDE.md` exists but the section is absent, append the section (append mode).
-
-The section to write or append:
-
-```markdown
-
-## Auto-maintained wiki
-
-This project uses the llm-code-wiki system to keep a codebase wiki current without manual upkeep, and to recall prior decisions automatically when planning new work.
-
-**Write path (capture):** A Stop hook (`inbox-stop.sh`) fires after each Claude assistant turn and nudges Claude to update `wiki/inbox/_session.md` — a state-of-the-world snapshot of what was built and decided this session. Run `/wiki-digest` manually to consolidate the inbox into filed wiki notes under `wiki/` (and refresh `wiki/topic-index.md` for recall).
-
-**Research-doc ingestion:** Drop any `.md` file (research notes, design docs, external references) directly into `wiki/inbox/` — anything other than `_session.md` and underscore-prefixed files. On the next `/wiki-digest`, the curator reads each dropped file in full, decomposes it into one or more concept notes, routes each to the right category, and applies the same chunking + linking + same-concept-detection logic used for `_session.md` entries. Consumed docs are archived to `wiki/inbox/_archive/<TS>-research-<filename>.md` and removed from `wiki/inbox/`. Conflicts with existing read-only `wiki/RESEARCH/` notes prompt for explicit instructions before any write — research docs do not silently overwrite curated research.
-
-**Brainstorm-fallback (every-N-turns capture):** Pure design conversations produce no Edit/Write/MultiEdit tool calls, so the artifact-driven path no-ops. To prevent decisions from falling on the floor, the Stop hook also tracks a per-session brainstorm counter at `.claude/inbox/.turn-count`. Every `N` consecutive code-free turns (default 10, override via `LCW_BRAINSTORM_TURNS` env var), it fires `inbox-update` in **Brainstorm-fallback mode** — telling Claude to scan the recent conversation for design decisions, named patterns, agreed file paths, and resolved trade-offs, capped at 5 entries per fire. The counter resets to 0 whenever a normal artifact-driven capture fires.
-
-**Read path (recall):** A UserPromptSubmit hook (`recall-prompt.sh`) detects planning-intent prompts and asks Claude to consult the wiki via the `wiki-recall` sub-agent before responding. The agent uses `wiki/topic-index.md` as a navigation map, greps the wiki for keywords, filters for relevance, and returns only the useful context. Run `/wiki-recall <query>` to invoke recall manually.
-
-**Wiki contract:** `wiki/Rules.md` defines all conventions (category folders, filename kebab-case, note template, ≤25-word summaries, 1,000-word note cap, Obsidian wiki-link syntax, `topic-index.md` auto-maintenance). The curator never modifies `wiki/Rules.md` autonomously — rule-change suggestions surface as proposals.
-
-**Explicit gaps (v1):** No real-time wiki sync, no auto-digest, no backfill from existing code, no wiki↔codebase reconciliation (`/reconcile` is deferred to v2). The inbox captures only what Claude edits in the current session.
-
-**Quick reference:**
-- Inbox: `wiki/inbox/_session.md`
-- Research-doc drop zone: `wiki/inbox/<your-doc>.md` (any `.md` not named `_session.md` or starting with `_`)
-- Inbox archive: `wiki/inbox/_archive/<TS>-session.md` and `<TS>-research-<filename>.md`
-- Topic index (recall map): `wiki/topic-index.md` (auto-maintained — do not edit by hand)
-- Digest: run `/wiki-digest` at a review checkpoint (consumes both session inbox and any research docs)
-- Recall: run `/wiki-recall <query>` to consult the wiki on demand
-- Update: run `/wiki-update` to pull upstream improvements (compares `.claude/llm-code-wiki.version` against upstream `VERSION`, shows changelog, refreshes `.claude/` while leaving `wiki/Rules.md`, `wiki/_templates/`, `wiki/topic-index.md` alone)
-- Rules contract: `wiki/Rules.md`
-- Hook audit log: `.claude/inbox/.hook-log` (`recall:` entries from the recall hook; `turncount-pending`/`turncount-fire` entries from the brainstorm-fallback path)
-- Brainstorm counter state: `.claude/inbox/.turn-count` (`SESSION_ID COUNT`; resets on session change or normal capture)
-- Brainstorm cadence override: `LCW_BRAINSTORM_TURNS` env var (default 10)
-- Kill switches:
-  - `touch .claude/inbox/.disabled` — disables the Stop hook (capture path, including brainstorm-fallback)
-  - `touch .claude/inbox/.recall-disabled` — disables the UserPromptSubmit hook (recall path)
-  - `rm` either file to re-enable
-```
-
-After writing or appending:
+- **Smoke 1 — Stop hook fires:** synthesizes a noop turn (no Edit/Write tool calls) so the hook follows the noop-detection branch. Evidence of execution = heartbeat appended to `.hook-log` (the hook ALWAYS writes this per D-04, even on noop). Replaces an earlier WARN-on-no-decision pattern that produced false-passes when `CLAUDE_PROJECT_DIR` was missing.
+- **Smoke 1b — Recall hook fires:** synthesizes a planning-intent prompt and pipes it through the recall hook. Expects `recall:fire` in `.hook-log` and a `Wiki recall` block on stdout.
+- **Smoke 2 — Inbox writable:** `touch wiki/inbox/_session.md`.
 
 ```bash
-echo "[wiki-install] Added Auto-maintained wiki section to CLAUDE.md"
-# Or if created from scratch:
-# echo "[wiki-install] Created CLAUDE.md with Auto-maintained wiki section"
-```
+set +e  # smoke tests must continue past failures to report all outcomes
+STATUS_FILE=/tmp/lcw-install-status.txt
+record() { printf '%s=%s\n' "$1" "$2" >> "$STATUS_FILE"; }
 
-## Step 7 — Smoke test (D-11)
-
-Run three checks to verify the installation.
-
-**Smoke test 1 — Hook executable check (B2 fix):**
-
-The hook script uses `$CLAUDE_PROJECT_DIR` internally. When invoked via a bare bash pipe outside Claude Code, this variable must be exported explicitly — without it the hook fails silently and produces a false-pass. Synthesize a noop turn (no Edit/Write tool calls) so the hook follows the noop-detection branch:
-
-```bash
 export CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR"
+
+# --- Smoke 1: Stop hook fires (heartbeat-based) ---
 TRANSCRIPT=$(mktemp)
 printf '{"role":"assistant","content":"hello"}\n' > "$TRANSCRIPT"
 RESULT=$(echo "{\"transcript_path\":\"$TRANSCRIPT\",\"session_id\":\"wiki-install-test\",\"stop_hook_active\":false}" \
   | "$CLAUDE_PROJECT_DIR/.claude/hooks/inbox-stop.sh" 2>&1)
 EXIT_CODE=$?
 rm -f "$TRANSCRIPT"
-# Noop-turn behavior: the hook exits 0 silently with empty stdout (no decision field).
-# Evidence of execution = heartbeat appended to .hook-log (hook ALWAYS writes this per D-04, even on noop).
 if [ -f "$CLAUDE_PROJECT_DIR/.claude/inbox/.hook-log" ] && tail -2 "$CLAUDE_PROJECT_DIR/.claude/inbox/.hook-log" | grep -q "wiki-install-test"; then
-  echo "[wiki-install] Smoke test 1 PASS: Stop hook executed (heartbeat recorded for wiki-install-test session)"
+  record SMOKE_1 "PASS"
+  echo "[wiki-install] Smoke 1 PASS: Stop hook fired (heartbeat recorded)."
 elif [ $EXIT_CODE -ne 0 ]; then
-  echo "[wiki-install] Smoke test 1 FAIL: Stop hook exited non-zero ($EXIT_CODE). Output: $RESULT"
-  echo "[wiki-install] Check that .claude/hooks/inbox-stop.sh is executable and CLAUDE_PROJECT_DIR is set."
+  record SMOKE_1 "FAIL"
+  echo "[wiki-install] Smoke 1 FAIL: Stop hook exit=$EXIT_CODE. Output: $RESULT"
 else
-  echo "[wiki-install] Smoke test 1 FAIL: hook ran but did not write to .hook-log. Verify hook script integrity."
+  record SMOKE_1 "FAIL"
+  echo "[wiki-install] Smoke 1 FAIL: hook ran but no .hook-log heartbeat. Verify hook script integrity."
 fi
-```
 
-Note: The original WARN-on-no-decision pattern produced a false-pass when `CLAUDE_PROJECT_DIR` was missing. This replacement checks heartbeat presence (which the hook ALWAYS writes per D-04, even on noop) and routes hook-run failures to FAIL — satisfying Pitfall 4's silent-failure mitigation.
-
-**Smoke test 1b — Recall hook execution check:**
-
-Synthesize a planning-intent prompt and pipe it through the recall hook. The hook should write a `recall:fire` line to `.hook-log` and emit a stdout block.
-
-```bash
-export CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR"
+# --- Smoke 1b: Recall hook fires ---
 RECALL_OUT=$(echo '{"session_id":"wiki-install-recall-test","prompt":"plan how to add a new feature"}' \
   | "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh" 2>&1)
 RECALL_EXIT=$?
 if [ -f "$CLAUDE_PROJECT_DIR/.claude/inbox/.hook-log" ] && tail -5 "$CLAUDE_PROJECT_DIR/.claude/inbox/.hook-log" | grep -q "wiki-install-recall-test recall:fire"; then
   if echo "$RECALL_OUT" | grep -q "Wiki recall"; then
-    echo "[wiki-install] Smoke test 1b PASS: UserPromptSubmit hook fired and emitted recall instruction"
+    record SMOKE_1B "PASS"
+    echo "[wiki-install] Smoke 1b PASS: recall hook fired and emitted Wiki recall block."
   else
-    echo "[wiki-install] Smoke test 1b WARN: hook fired but stdout didn't contain expected 'Wiki recall' block"
+    record SMOKE_1B "WARN"
+    echo "[wiki-install] Smoke 1b WARN: hook fired but stdout missing 'Wiki recall' block."
   fi
 elif [ $RECALL_EXIT -ne 0 ]; then
-  echo "[wiki-install] Smoke test 1b FAIL: recall hook exited non-zero ($RECALL_EXIT). Output: $RECALL_OUT"
+  record SMOKE_1B "FAIL"
+  echo "[wiki-install] Smoke 1b FAIL: recall hook exit=$RECALL_EXIT. Output: $RECALL_OUT"
 else
-  echo "[wiki-install] Smoke test 1b FAIL: hook ran but did not write recall:fire to .hook-log. Verify hook script integrity."
+  record SMOKE_1B "FAIL"
+  echo "[wiki-install] Smoke 1b FAIL: hook ran but no recall:fire in .hook-log."
 fi
-```
 
-**Smoke test 2 — Inbox writability:**
-
-```bash
+# --- Smoke 2: inbox writable ---
 if touch "$CLAUDE_PROJECT_DIR/wiki/inbox/_session.md" 2>/dev/null; then
-  echo "[wiki-install] Smoke test 2 PASS: wiki/inbox/_session.md is writable"
+  record SMOKE_2 "PASS"
+  echo "[wiki-install] Smoke 2 PASS: wiki/inbox/_session.md writable."
 else
-  echo "[wiki-install] Smoke test 2 FAIL: wiki/inbox/_session.md is not writable — check permissions"
+  record SMOKE_2 "FAIL"
+  echo "[wiki-install] Smoke 2 FAIL: wiki/inbox/_session.md not writable — check filesystem permissions."
 fi
-```
 
-## Step 7b — Stamp installed version
-
-Record the version of the scaffold that's now installed. `/wiki-update` reads this stamp to decide whether an upgrade is available.
-
-```bash
+# --- Version stamp ---
 if [ -f "$CLAUDE_PROJECT_DIR/VERSION" ]; then
   cp "$CLAUDE_PROJECT_DIR/VERSION" "$CLAUDE_PROJECT_DIR/.claude/llm-code-wiki.version"
-  echo "[wiki-install] Stamped installed version: $(cat "$CLAUDE_PROJECT_DIR/.claude/llm-code-wiki.version")"
+  V=$(cat "$CLAUDE_PROJECT_DIR/.claude/llm-code-wiki.version")
+  record VERSION_STAMP "$V"
+  echo "[wiki-install] Stamped version: $V"
 else
-  echo "[wiki-install] WARN: no VERSION file at project root — /wiki-update will treat the install as version-unknown."
+  record VERSION_STAMP "unknown — VERSION absent"
+  echo "[wiki-install] WARN: VERSION file absent; /wiki-update will treat install as version-unknown."
+fi
+
+# Hard-fail on any FAIL outcome from smoke 1/1b/2 (constraint: failures must abort)
+if grep -qE '^(SMOKE_1|SMOKE_1B|SMOKE_2)=FAIL$' "$STATUS_FILE"; then
+  echo "[wiki-install] ABORT: one or more smoke tests failed. Review messages above."
+  exit 1
 fi
 ```
 
-If the `VERSION` file is missing (e.g., manual install from a checkout that predates versioning), this step warns and skips. `/wiki-update` handles a missing stamp by treating local as `0.0.0` and applying the full update.
+## Block 5 — Final install summary
 
-**Smoke test 3 — Install summary:**
+Reads the per-step status file and prints a single summary block so the user sees the install outcome at a glance regardless of intermediate output.
 
-Print a summary block listing what was created vs skipped for each deliverable, the smoke test outcomes, and the suggested next step:
+```bash
+STATUS_FILE=/tmp/lcw-install-status.txt
+get() { grep "^$1=" "$STATUS_FILE" | head -1 | cut -d= -f2-; }
 
-```
+cat <<EOF
 [wiki-install] === Install Summary ===
-[wiki-install] wiki/                            — (created | already existed)
-[wiki-install] wiki/_templates/note.md          — (created | already existed)
-[wiki-install] wiki/Rules.md                    — (created | already existed)
-[wiki-install] wiki/inbox/                      — (created | already existed)
-[wiki-install] wiki/topic-index.md              — (created | already existed)
-[wiki-install] .claude/settings.json (Stop)     — (created | merged | hook already registered)
-[wiki-install] .claude/settings.json (Recall)   — (created | merged | hook already registered)
-[wiki-install] CLAUDE.md                        — (created | section appended | section already present)
-[wiki-install] Version stamp:                   — (X.Y.Z | unknown — VERSION absent)
-[wiki-install] Smoke test 1 (Stop hook fires):  — (PASS | FAIL)
-[wiki-install] Smoke test 1b (Recall hook):     — (PASS | WARN | FAIL)
-[wiki-install] Smoke test 2 (inbox writable):   — (PASS | FAIL)
-[wiki-install] === Next step: take a normal Claude turn that edits a file to see the Stop hook fire,
-[wiki-install]                and ask Claude to plan something to see the recall hook fire. ===
+[wiki-install] wiki/                             — $(get WIKI_DIR)
+[wiki-install] wiki/_templates/note.md           — $(get NOTE_TPL)
+[wiki-install] wiki/Rules.md                     — $(get RULES)
+[wiki-install] wiki/inbox/                       — $(get INBOX)
+[wiki-install] wiki/topic-index.md               — $(get TOPIC_INDEX)
+[wiki-install] settings.json (Stop)              — $(get SETTINGS_STOP)
+[wiki-install] settings.json (UserPromptSubmit)  — $(get SETTINGS_RECALL)
+[wiki-install] CLAUDE.md                         — $(get CLAUDE_MD)
+[wiki-install] Version stamp                     — $(get VERSION_STAMP)
+[wiki-install] Smoke 1  (Stop hook fires)        — $(get SMOKE_1)
+[wiki-install] Smoke 1b (Recall hook fires)      — $(get SMOKE_1B)
+[wiki-install] Smoke 2  (inbox writable)         — $(get SMOKE_2)
+[wiki-install] === Next: edit a file → see Stop hook fire; ask Claude to plan → see recall fire. ===
+EOF
+rm -f "$STATUS_FILE"
 ```
 
-## Logging discipline (D-12)
+## Notes for the executor
 
-Every Bash-executed step prints its `[wiki-install] ...` outcome line. Steps that use Read/Write tools are followed by a Bash `echo "[wiki-install] ..."` confirmation so the user sees continuous progress. No step is silent.
+- **Tool-call shape:** five `Bash` invocations, zero `Write` and zero `Edit` invocations. The `cat` operations in Blocks 3/5 happen inside Bash — no tool transition. This is the design that drops install permission prompts from ~20 to 5.
+- **Status file:** `/tmp/lcw-install-status.txt` carries per-step outcomes across blocks (each Bash invocation is a fresh shell, so shell variables don't survive). The path is fixed; concurrent installs from different projects on the same machine could race on it (acceptable for single-developer tooling — there's no other concurrent-install protection in v1).
+- **Idempotence:** re-running on a complete install reports "already existed" / "section already present" / "re-merged (replaced existing)" with a zero-content-diff on settings.json. Smoke tests run again (stateless aside from `.hook-log` heartbeat appends).
+- **Backward-compat with old installs:** users who installed via the previous 7-step skill will, on next `/wiki-update`, fetch the new template files and the new SKILL.md. Subsequent `/wiki-install` runs follow the new flow without any migration step.
+- **Skill/agent name collisions:** if the target had pre-existing skills named `wiki-install`, `inbox-update`, `wiki-digest`, `wiki-recall`, `wiki-rules`, or agents named `wiki-curator` / `wiki-recall`, they would have been overwritten by the upstream copy step (plugin install, manual copy, marketplace, etc.). The distribution mechanism is responsible for surfacing those collisions. Block 1's precondition check only verifies the required files are present and hooks are executable.

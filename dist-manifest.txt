@@ -25,6 +25,8 @@ CHANGELOG.md
 .claude/skills/wiki-digest/reference/non-fork-fallback.md
 .claude/skills/wiki-install/SKILL.md
 .claude/skills/wiki-install/SETTINGS-SNIPPET.md
+.claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md
+.claude/skills/wiki-install/templates/topic-index.seed.md
 .claude/skills/wiki-recall/SKILL.md
 .claude/skills/wiki-rules/SKILL.md
 .claude/skills/wiki-update/SKILL.md
@@ -39,6 +41,7 @@ CHANGELOG.md
 
 # Wiki seeds — user-owned. /wiki-update will NOT overwrite these; remote-install fetcher
 # also uses skip-if-exists semantics for them. Note: wiki/topic-index.md is intentionally
-# NOT shipped here (curator regenerates it; /wiki-install Step 4b creates the empty seed inline).
+# NOT shipped here (curator regenerates it; /wiki-install Block 1 materializes it from
+# .claude/skills/wiki-install/templates/topic-index.seed.md at install time).
 wiki/Rules.md  keep
 wiki/_templates/note.md  keep

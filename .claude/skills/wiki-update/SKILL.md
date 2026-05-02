@@ -307,19 +307,13 @@ fi
 
 ## Step 6 — Refresh CLAUDE.md "Auto-maintained wiki" section
 
-Extract the canonical section content from the just-updated `wiki-install/SKILL.md` (one source of truth — Step 6's markdown code fence is the canonical block).
+The canonical section content lives in the shipped template `.claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md` — single source of truth shared with `/wiki-install` Block 3. Step 4's manifest fetch placed (or refreshed) it before this step runs.
 
 ```bash
-SECTION_FILE=$(mktemp)
-awk '
-  /^## Auto-maintained wiki[[:space:]]*$/ { in_block = 1 }
-  in_block && /^```[[:space:]]*$/ { exit }
-  in_block { print }
-' "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/SKILL.md" > "$SECTION_FILE"
-
-if [ ! -s "$SECTION_FILE" ]; then
-  echo "[wiki-update] ABORT: could not extract canonical Auto-maintained wiki section from wiki-install/SKILL.md."
-  rm -f "$SECTION_FILE"
+SECTION_FILE="$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md"
+if [ ! -f "$SECTION_FILE" ]; then
+  echo "[wiki-update] ABORT: canonical CLAUDE.md section template missing at $SECTION_FILE."
+  echo "[wiki-update] Manifest fetch may have failed — re-run /wiki-update or inspect dist-manifest.txt."
   exit 1
 fi
 ```
@@ -351,7 +345,6 @@ else
   cat "$SECTION_FILE" >> "$CLAUDE_MD"
   echo "[wiki-update] Appended Auto-maintained wiki section to CLAUDE.md."
 fi
-rm -f "$SECTION_FILE"
 ```
 
 ## Step 7 — Stamp version + summary

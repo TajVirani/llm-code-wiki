@@ -73,11 +73,12 @@ You are installing the llm-code-wiki scaffold into the current project (`$CLAUDE
    chmod +x "$CLAUDE_PROJECT_DIR/.claude/hooks/recall-prompt.sh"
    ```
 
-5. **Run the bootstrap inline.** Read `$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/SKILL.md` and execute every step exactly as written, top to bottom (Step 0 → Step 7). Use the Bash tool for bash blocks and Write/Edit for file operations the skill specifies. Notes:
-   - Step 0 precondition check should pass — the manifest fetch in step 3 above placed every required file.
-   - Steps 1–4b will print "already exists, skipping" for the wiki seed files (the manifest pre-placed them with skip-if-exists semantics). That's correct.
-   - Steps 5/5b/6/7 do the real work: settings.json merge, CLAUDE.md append, smoke tests.
-   - Do NOT skip Step 7's smoke tests — they're the install verification.
+5. **Run the bootstrap inline.** Read `$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/SKILL.md` and execute its five Bash blocks in order. The skill is template-copy based — there are no Write/Edit tool calls; every block is a single Bash invocation. Notes:
+   - Block 1 verifies the manifest fetch placed every required file (including the new `templates/CLAUDE-MD-SECTION.md` and `templates/topic-index.seed.md`), then creates `wiki/`, `wiki/inbox/`, and materializes `wiki/topic-index.md` from the seed template. `wiki/Rules.md` and `wiki/_templates/note.md` will be reported as "already existed" — correct.
+   - Block 2 merges the Stop and UserPromptSubmit hook entries into `.claude/settings.json` (this is the user's settings-merge approval prompt).
+   - Block 3 appends the "## Auto-maintained wiki" section to `CLAUDE.md` from the canonical template (this is the user's CLAUDE.md-append approval prompt).
+   - Block 4 runs three smoke tests (Stop hook fire, recall hook fire, inbox writable) and stamps `.claude/llm-code-wiki.version`. Do NOT skip — they're install verification, and any FAIL aborts the skill.
+   - Block 5 prints the install summary block.
 
 6. **Print a final summary.** Combine the manifest fetch results from step 3 with the install summary block printed by Step 7 of the bootstrap. Make it easy for the user to scan what landed where.
 
@@ -97,6 +98,8 @@ If you'd rather copy the files yourself (e.g., for offline installs, or to vendo
    - `.claude/skills/inbox-update/` — the per-turn inbox update skill
    - `.claude/skills/wiki-rules/` — thin pointer to your project's `wiki/Rules.md`
    - `.claude/skills/wiki-install/` — the bootstrap skill (this file's installer)
+   - `.claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md` — canonical "Auto-maintained wiki" section text (single source of truth, also consumed by `/wiki-update`)
+   - `.claude/skills/wiki-install/templates/topic-index.seed.md` — empty topic-index seed materialized by `/wiki-install` Block 1
    - `.claude/agents/wiki-curator.md` — the curator sub-agent (read+write)
    - `.claude/agents/wiki-recall.md` — the recall sub-agent (read-only)
    - `.claude/hooks/inbox-stop.sh` — the Stop hook script (capture path)
@@ -106,7 +109,7 @@ If you'd rather copy the files yourself (e.g., for offline installs, or to vendo
    - `wiki/Rules.md`
    - `wiki/_templates/note.md`
 
-   The authoritative list is `dist-manifest.txt` at the repo root. Do NOT copy any other contents of `wiki/` — those are the source repo's own dogfood notes, not part of the scaffold. `/wiki-install` will create `wiki/topic-index.md` from a canonical empty seed during Step 4b.
+   The authoritative list is `dist-manifest.txt` at the repo root. Do NOT copy any other contents of `wiki/` — those are the source repo's own dogfood notes, not part of the scaffold. `/wiki-install` Block 1 materializes `wiki/topic-index.md` from `.claude/skills/wiki-install/templates/topic-index.seed.md` at install time (interpolating ISO-8601 timestamps).
 
 2. **Restart Claude Code** in your project directory. New top-level `.claude/skills/` directories require a session restart to register.
 

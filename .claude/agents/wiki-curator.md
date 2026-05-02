@@ -69,6 +69,23 @@ A single research doc may produce N≥1 virtual entries. A virtual entry whose c
 
 OVERRIDE rows (from Step 2a) do not apply to research-doc concepts: there's no handle line to override. The category is the curator's pick from the doc body. If the curator's category pick is non-obvious (e.g., FUNCTIONS-vs-ARCHITECTURE for a borderline boundary description), surface the rationale in the plan's Notes column for that row.
 
+#### 2c. Template selection by diagram/pattern triggers (Rules.md §12)
+
+After the route is set in 2a/2b, decide which template scaffold the entry should be written from. Default is `_templates/note.md`. Specialized templates are picked when a trigger fires; triggers are evaluated in order and the first match wins.
+
+| # | Trigger signal in the entry/concept | Template chosen | Suggested route |
+|---|---|---|---|
+| 1 | FSM-shaped code: state enum + transition function + dispatcher | `_templates/state-diagram.md` | `DIAGRAMS/` (pair a FUNCTIONS/ note for the dispatcher) |
+| 2 | Cross-file request path edited in one session: 3+ files in a handler→service→repository (or analogous) chain | `_templates/sequence-flow.md` | `DIAGRAMS/` |
+| 3 | Decision/branch logic: function with ≥4 mutually-exclusive branches (switch, dispatch table, route matcher, validation pipeline) | `_templates/flowchart.md` | `DIAGRAMS/` |
+| 4 | Module/component boundary work: edits cross 2+ top-level package/folder boundaries OR a new top-level component is added | `_templates/component-diagram.md` | `DIAGRAMS/` (pair an ARCHITECTURE/ note) |
+| 5 | Orchestration with 3+ named sub-flows (hooks composing agents, agents dispatching skills, scheduled jobs invoking pipelines) | `_templates/interaction-overview.md` | `DIAGRAMS/` (plus child sequence-flow notes per sub-flow) |
+| 6 | Recurring code pattern (≥3 occurrences) OR research-doc/inbox entry tagged `#pattern` | `_templates/pattern.md` | `ARCHITECTURE/` |
+
+If a trigger fires, set the entry's `template` to the chosen path; record this in the plan's Notes column as `template: <name>`. If no trigger fires, `template` is implicit `note.md` (do not annotate). When trigger 1, 4, or 5 fires, the curator emits the paired note as a separate row in the plan (its own CREATE row, its own template, its own slug).
+
+If the trigger conflicts with the route from 2a/2b — e.g., handle says `FUNCTIONS::` but the entry trips trigger 4 (which routes to `DIAGRAMS/` paired with an `ARCHITECTURE/` note) — emit an OVERRIDE row per 2a's discipline AND record the template choice. The route comes from the handle/concept, not from the trigger; the trigger only picks the template scaffold.
+
 ### Step 3 — Detect same-concept conflicts (DIGS-09, D-04)
 
 For each entry's slug, search the wiki index from Step 1 using THREE signals (Pattern: filename + title + tag overlap; never use semantic similarity / embeddings — that's anti-feature A10):
@@ -141,7 +158,7 @@ If any row fails validation: report the failure in the plan output and HALT befo
 ### Step 7 — Apply the plan (only after validation)
 
 For each row (except CONFLICT-ON-RESEARCH, which goes to Step 7a):
-- CREATE: emit a new file matching `wiki/_templates/note.md` field-for-field. Created = now (ISO-8601). Last Updated = same.
+- CREATE: emit a new file matching the entry's chosen template (`note.md` by default; specialized template if Step 2c set one). All templates share the outer frontmatter schema (Summary, Tags, Created, Last Updated, ## Content, ## Related Notes); only the inside of `## Content` differs by template. Created = now (ISO-8601). Last Updated = same.
 - EDIT: read the existing note, patch its Content section as needed, update Last Updated. Created field is immutable. **Do NOT apply EDIT to any file under `wiki/RESEARCH/` — those are ALERT or CONFLICT-ON-RESEARCH rows, not EDIT rows (D-19).**
 - SPLIT: write the new files; update inbound `[[Old]]` references per Step 4's per-backlink decisions. **Do NOT apply SPLIT to any file under `wiki/RESEARCH/` (D-19). Do NOT rewrite backlinks inside `wiki/RESEARCH/` files — leave them as-is and surface in Step 8 audit.**
 - OVERRIDE: write to the OVERRIDDEN category, not the original.
@@ -309,6 +326,7 @@ If the wiki-digest skill cannot fork (`CLAUDE_CODE_FORK_SUBAGENT=0`), the wiki-d
 - You do not modify `wiki/Rules.md` (DIGS-13, D-16). If you think Rules.md should change, surface a RULES-PROPOSAL row.
 - You do not touch source code, planning artifacts, hooks, or anything outside `wiki/`.
 - You do not invent categories beyond Rules.md §2's five canonical folders. If an entry doesn't fit, surface a RULES-PROPOSAL.
+- You do not invent new templates beyond what exists in `wiki/_templates/`. If a trigger from Rules.md §12 doesn't match cleanly, fall back to `note.md` rather than improvising a new scaffold. New templates require a Rules.md §12 amendment in the same change.
 - You do not use embeddings or semantic similarity for duplicate detection (anti-feature A10). Filename + title + tag overlap only. No embeddings.
 - You do not skip routing on disagreement (D-02). You always pick a route — for session-inbox entries via OVERRIDE if needed, for research-doc concepts via your category pick from the doc body.
 - You do not auto-EDIT or auto-SPLIT files under `wiki/RESEARCH/` (D-19). RESEARCH/ is read-only via the automatic path. Behavior branches by source:

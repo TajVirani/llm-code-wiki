@@ -2,7 +2,7 @@
 **Summary**: Rules governing how notes are created, split, filed, and linked inside the project wiki.
 **Tags**: #wiki #rules #conventions
 **Created**: 2026-04-10T00:00:00+00:00
-**Last Updated**: 2026-04-29T00:00:00+00:00
+**Last Updated**: 2026-05-01T00:00:00+00:00
 
 ---
 
@@ -31,7 +31,7 @@ If a note doesn't obviously belong in one of these, propose a new top-level fold
 
 ### 3. The template (every filed note)
 
-Every filed note **must** start with the structure from `_templates/note.md`:
+Every filed note **must** start with the structure from a template in `_templates/`. The default template is `_templates/note.md`. Specialized templates exist for diagrams and patterns (`pattern.md`, `state-diagram.md`, `sequence-flow.md`, `flowchart.md`, `component-diagram.md`, `interaction-overview.md`). All templates share the same outer schema below — only the inside of `## Content` differs by template. The curator picks a specialized template when a diagram trigger fires (see §12); otherwise it uses `note.md`.
 
 ```markdown
 
@@ -105,7 +105,7 @@ For research-doc concepts that collide with existing read-only `wiki/RESEARCH/` 
 
 ### 9. The `_templates/` and `inbox/` folders are special
 
-- `_templates/` is owned by the schema. Do not file notes there.
+- `_templates/` is owned by the schema. Do not file notes there. Multiple templates may live here; all share the same outer schema (Summary, Tags, Created, Last Updated, ## Content, ## Related Notes). Adding or modifying a template is a deliberate change to the contract — the curator never authors templates, only consumes them.
 - `inbox/` is a staging area. Notes that live in `inbox/` are not part of the wiki proper and should not be linked from filed notes.
   - `inbox/_session.md` is the live session inbox (handle-line entries). Auto-maintained by the inbox-update skill; reset on each successful `/wiki-digest`.
   - `inbox/_archive/` holds pre-digest snapshots of every consumed source (session inbox + research docs). Never written to by the curator; written only by the wiki-digest skill body before any note write (crash-safety guarantee).
@@ -134,6 +134,26 @@ Rules:
 - Hard cap: ≤ 100 entries.
 
 The recall agent (`wiki-recall`) reads this file as the entry point for every `/wiki-recall` and every UserPromptSubmit-triggered recall. Keeping it small and accurate is what makes recall fast.
+
+### 12. Diagram triggers
+
+The curator emits a `DIAGRAMS/` note (and selects a specialized template from `_templates/`) when one of the following is detected during a digest pass. Triggers are evaluated in order; the first match wins. If no trigger fires, the curator falls back to `_templates/note.md` and routes per §6.
+
+| # | Trigger | Template | Routing |
+|---|---|---|---|
+| 1 | **FSM-shaped code** — state enum + transition function + dispatcher detected in a session edit or research-doc concept | `_templates/state-diagram.md` | `DIAGRAMS/<slug>.md`; pair with a `FUNCTIONS/<dispatcher>.md` note for the dispatcher symbol. |
+| 2 | **Cross-file request path** — same session edits 3+ files in a handler→service→repository (or analogous) chain | `_templates/sequence-flow.md` | `DIAGRAMS/<slug>.md`. |
+| 3 | **Decision/branch logic** — function with ≥4 mutually-exclusive branches (switch, dispatch table, route matcher, validation pipeline) | `_templates/flowchart.md` | `DIAGRAMS/<slug>.md`. |
+| 4 | **Module/component boundary work** — session edits cross 2+ top-level package/folder boundaries OR a new top-level component is added | `_templates/component-diagram.md` | `DIAGRAMS/<slug>.md`; pair with an `ARCHITECTURE/<slug>.md` note. |
+| 5 | **Orchestration with named sub-flows** — code that composes 3+ named sub-flows (hooks composing agents, agents dispatching skills, scheduled jobs invoking pipelines) | `_templates/interaction-overview.md` | `DIAGRAMS/<slug>.md`; pair child `DIAGRAMS/<sub-flow>.md` notes built from `sequence-flow.md`. |
+
+A separate trigger applies to non-diagram notes:
+
+| # | Trigger | Template | Routing |
+|---|---|---|---|
+| 6 | **Recurring code pattern** — the same shape (≥3 occurrences in this repo) detected across files; the user surfaces it as a pattern in a research-doc; OR an inbox entry explicitly tags it `#pattern` | `_templates/pattern.md` | `ARCHITECTURE/<slug>.md`. |
+
+Trigger detection is the curator's responsibility (Step 2 of its protocol). Disagreement between handle category and trigger is resolved by treating the trigger as advisory: if the trigger matches but the handle disagrees, surface an OVERRIDE row per §6 step rules and the curator's Step 2a override discipline. New triggers are not invented on the fly — propose them via a `RULES-PROPOSAL` row and amend this section in the same change that adds the supporting template.
 
 ## Related Notes
 

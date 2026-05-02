@@ -47,4 +47,4 @@ At least two file paths in this repo where this pattern lives:
 
 ## Related Notes
 
-- [[Note Title]]
+- [[note-basename|Display Title]]

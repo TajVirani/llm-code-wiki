@@ -26,8 +26,8 @@ Each node corresponds to a named sub-flow that has its own `sequence-flow.md` no
 
 | Node | Detail note | What this sub-flow does |
 |---|---|---|
-| Sub-flow A | [[Sub-flow A title]] | one-sentence description |
-| Sub-flow B | [[Sub-flow B title]] | one-sentence description |
+| Sub-flow A | [[sub-flow-a|Sub-flow A title]] | one-sentence description |
+| Sub-flow B | [[sub-flow-b|Sub-flow B title]] | one-sentence description |
 
 ### Composition narrative
 
@@ -35,4 +35,4 @@ One paragraph: how the sub-flows compose into the overall interaction. Name the 
 
 ## Related Notes
 
-- [[Note Title]]
+- [[note-basename|Display Title]]

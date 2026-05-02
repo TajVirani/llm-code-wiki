@@ -25,4 +25,4 @@ Do not edit by hand — bullets that are not the result of a digest run will be 
 
 ## Related Notes
 
-- [[Rules]]
+- [[Rules|Wiki Rules]]

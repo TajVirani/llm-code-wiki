@@ -12,4 +12,4 @@ Write the main content here.
 
 ## Related Notes
 
-- [[Note Title]]
+- [[note-basename|Display Title]]

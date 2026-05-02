@@ -48,7 +48,7 @@ Main content here.
 
 ## Related Notes
 
-- [[Other Note Title]]
+- [[other-note-title|Other Note Title]]
 ```
 
 Rules for filling it in:
@@ -56,7 +56,7 @@ Rules for filling it in:
 - **Summary** is one sentence, ≤ 25 words. It must answer "what is this note about" without reading the body.
 - **Tags** are 2–5 lowercase hashtags. Use existing tags before inventing new ones; keep them topical to your project (e.g. `#api`, `#auth`, `#database`, `#frontend`, `#architecture`).
 - **Created** never changes after the note is first filed. **Last Updated** changes on every edit.
-- **Related Notes** uses Obsidian wiki-link syntax `[[Note Title]]`. Use the *display title* of the linked note, not the filename.
+- **Related Notes** uses **piped** Obsidian wiki-link syntax `[[note-basename|Display Title]]`. The part before `|` is the target file's name without `.md` (kebab-case per §5); the part after `|` is the human-readable title. The piped form is required because Obsidian's default resolver matches bare links against filenames — `[[Display Title]]` will not resolve to a kebab-case file and will create a blank note on click.
 
 ### 4. Length and splitting
 
@@ -93,9 +93,10 @@ For research-doc concepts that collide with existing read-only `wiki/RESEARCH/` 
 
 ### 7. Linking
 
-- Use Obsidian wiki-links `[[Note Title]]` for internal links.
+- Use **piped** Obsidian wiki-links `[[note-basename|Display Title]]` for internal links. The basename is the target file's name without `.md` (kebab-case per §5); the display title is what readers see.
+- Bare `[[Display Title]]` is forbidden — Obsidian's resolver matches against filenames, not titles, so a bare link to a kebab-case file will not resolve and clicking it creates a new blank note at the vault root.
 - Use standard markdown links `[text](url)` for external links.
-- Never hard-code paths to other wiki notes — Obsidian resolves titles automatically and paths break on rename.
+- Never hard-code folder paths inside a wiki-link (`[[CATEGORY/note-basename|Title]]`) — Obsidian resolves bare basenames across the vault and folder-prefixed forms break when notes move between category folders.
 
 ### 8. Editing existing notes
 
@@ -157,4 +158,4 @@ Trigger detection is the curator's responsibility (Step 2 of its protocol). Disa
 
 ## Related Notes
 
-- [[Note Title]]
+- `[[note-basename|Display Title]]` (template placeholder — see §3 / §7)

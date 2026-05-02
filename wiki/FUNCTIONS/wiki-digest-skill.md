@@ -1,8 +1,8 @@
 
 **Summary**: `/wiki-digest` consolidates session-inbox entries and research-doc drops into filed wiki notes via the curator subagent, owning archive-before-write, audit, and source-cleanup lifecycle.
-**Tags**: #skill #digest #lifecycle #function #fork
+**Tags**: #skill #digest #lifecycle #function #fork #linking
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:42:00+00:00
+**Last Updated**: 2026-05-01T23:14:00+00:00
 
 ---
 
@@ -13,7 +13,7 @@
 
 **Role.** Consolidates inbox sources into filed wiki notes via the wiki-curator subagent. Owns the *lifecycle* around the curator's writes: source discovery, archive-before-write, post-write link audit, source-file cleanup on success, and the empty-inbox no-op path.
 
-**Fork-mode contract.** The skill frontmatter declares `context: fork` + `agent: wiki-curator`. With `context: fork` there is no separate parent runtime that resumes after the curator finishes — the curator IS the only executor. The skill body intro states this unambiguously and addresses every Step 4–7 instruction in second person at the curator. See [[Fork Context No Parent Runtime]] for the failure mode that motivated this wording.
+**Fork-mode contract.** The skill frontmatter declares `context: fork` + `agent: wiki-curator`. With `context: fork` there is no separate parent runtime that resumes after the curator finishes — the curator IS the only executor. The skill body intro states this unambiguously and addresses every Step 4–7 instruction in second person at the curator. See [[fork-context-no-parent-runtime|Fork Context No Parent Runtime]] for the failure mode that motivated this wording.
 
 **Step 1 — Source discovery (two source types):**
 
@@ -28,7 +28,7 @@ The combined no-op guard skips the run only when *both* sources are empty.
 
 **Step 4 — Curator runs.** The curator emits a source-grouped plan (`## Source: <path>` sub-headings), validates it, applies CREATE / EDIT / SPLIT / OVERRIDE rows, and runs interactive resolution for any CONFLICT-ON-RESEARCH rows.
 
-**Step 5 — Post-write link audit (DIGS-11, D-08).** Greps every `[[X]]` and `[[X|alias]]` in the wiki and verifies the canonical title resolves.
+**Step 5 — Post-write link audit (DIGS-11, D-08).** Greps every `[[basename|Display Title]]` reference, takes the part before `|` as a basename, and verifies a matching `wiki/**/<basename>.md` exists — a file-existence check, NOT an H1 match (Obsidian resolves on filename). Bare `[[X]]` references (no `|`) are surfaced as out-of-contract violations regardless of whether an H1 happens to match. See [[piped-wiki-link-contract|Piped Wiki Link Contract]] for the rationale; both the unresolved-basename and bare-link findings appear under the digest summary's "Unresolved wiki-links" section.
 
 **Step 6a — Reset session inbox** to the empty canonical template once the curator's writes succeeded. The curator performs this Write itself (duplicates curator agent Step 10) — under `context: fork` no other executor exists.
 
@@ -38,7 +38,8 @@ The combined no-op guard skips the run only when *both* sources are empty.
 
 ## Related Notes
 
-- [[Wiki Curator Agent]]
-- [[Research Doc Ingestion]]
-- [[Digest Step 6 Inbox Reset]]
-- [[Fork Context No Parent Runtime]]
+- [[wiki-curator-agent|Wiki Curator Agent]]
+- [[research-doc-ingestion|Research Doc Ingestion]]
+- [[digest-step-6-inbox-reset|Digest Step 6 Inbox Reset]]
+- [[fork-context-no-parent-runtime|Fork Context No Parent Runtime]]
+- [[piped-wiki-link-contract|Piped Wiki Link Contract]]

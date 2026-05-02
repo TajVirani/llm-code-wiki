@@ -25,6 +25,6 @@
 
 ## Related Notes
 
-- [[Wiki Digest Skill]]
-- [[Wiki Curator Agent]]
-- [[Update Flow]]
+- [[wiki-digest-skill|Wiki Digest Skill]]
+- [[wiki-curator-agent|Wiki Curator Agent]]
+- [[update-flow|Update Flow]]

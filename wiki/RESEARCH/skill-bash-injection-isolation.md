@@ -26,4 +26,4 @@ The `wiki-digest` skill applies this pattern in each of its three bash injection
 
 ## Related Notes
 
-- [[Recall Path]]
+- [[recall-path|Recall Path]]

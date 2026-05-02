@@ -42,4 +42,4 @@ stateDiagram-v2
 
 ## Related Notes
 
-- [[Note Title]]
+- [[note-basename|Display Title]]

@@ -18,7 +18,7 @@ A UserPromptSubmit hook detects planning-intent prompts and asks Claude to consu
 
 ## Related Notes
 
-- [[Recall Prompt Hook]]
-- [[Wiki Recall Subagent]]
-- [[Recall Skill]]
-- [[Topic Index As Recall Map]]
+- [[recall-prompt-hook|Recall Prompt Hook]]
+- [[wiki-recall-subagent|Wiki Recall Subagent]]
+- [[recall-skill|Recall Skill]]
+- [[topic-index-as-recall-map|Topic Index As Recall Map]]

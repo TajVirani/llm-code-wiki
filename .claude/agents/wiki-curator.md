@@ -53,7 +53,7 @@ For each research-doc source file (parsed in Step 1.4 / 1.6), apply Rules.md §6
 2. **Decide single-concept vs multi-concept.** A single-concept doc produces one virtual entry. A multi-concept doc produces one virtual entry per distinct concept (sub-headings, distinct topical sections, or disjoint subject matter signal multi-concept).
 3. **For each derived concept, draft:**
    - **Slug** — kebab-case, ≤ ~50 chars, matches the concept name (Rules.md §5). Example: `auth-token-refresh`.
-   - **Title** — H1 phrase the concept will use as its display title. Used by `[[Title]]` links elsewhere.
+   - **Title** — H1 phrase the concept will use as its display title. Used by `[[basename|Title]]` links elsewhere (the basename equals the slug per Rules.md §7).
    - **Category** — pick from {ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS} per the Rules.md §2 table:
      - ARCHITECTURE: system-level structure, boundaries, dev workflow, build/deploy, integration points
      - FUNCTIONS: specific functions, endpoints, handlers, services (one concept per note)
@@ -113,11 +113,11 @@ If 0–1 signals match: this is a CREATE.
 
 If an EDIT would push the target note's body past 1,000 words: SPLIT.
 - Each split is its own file with its own template, summary, tags.
-- Splits cross-link via `[[Title]]` (Rules.md §7) in their Related Notes sections.
-- Per D-05, D-06: when splitting, grep `wiki/**/*.md` for `[[OldTitle]]` and `[[OldTitle|alias]]`. For EACH inbound link:
+- Splits cross-link via `[[basename|Title]]` (Rules.md §7) in their Related Notes sections.
+- Per D-05, D-06: when splitting, grep `wiki/**/*.md` for inbound links to the old slug — `[[old-slug|...]]` (the canonical piped form) and any legacy bare `[[Old Title]]` references. For EACH inbound link:
   - Determine which split is most relevant based on the surrounding sentence + section heading where the link sits (D-06: per-backlink target picking).
-  - Rewrite the link in place to `[[NewSplitTitle]]` (or `[[NewSplitTitle|alias]]` preserving the alias per D-07).
-  - Report this in the plan as ONE summary line: "rewrite N backlinks to [[OldTitle]] across M files (per-link target chosen by surrounding context)".
+  - Rewrite the link in place to `[[new-slug|Display Title]]`. The display title (the part after `|`) is preserved verbatim from the original link if it already had one (D-07); otherwise derive it from the new split's H1.
+  - Report this in the plan as ONE summary line: "rewrite N backlinks to old slug `<old-slug>` across M files (per-link target chosen by surrounding context)".
 
 **RESEARCH/ write-protection (D-19):** Do NOT emit a SPLIT row for files under `wiki/RESEARCH/`. The same-concept detection in Step 3 would have already emitted an ALERT for any RESEARCH/ hit — splits on RESEARCH/ notes are not performed. Backlink auto-rewrite (D-05) does NOT modify backlinks that live INSIDE `wiki/RESEARCH/` files. If a backlink in a RESEARCH/ file would otherwise be rewritten, leave it as-is and surface it in the post-write audit (Step 8) as an unrewritten backlink in a read-only folder.
 
@@ -149,7 +149,7 @@ For every CREATE/EDIT/SPLIT row:
 - Summary ≤ 25 words (Rules.md §3; DIGS-07).
 - Body ≤ 1,000 words; otherwise must be a SPLIT row (Rules.md §4; DIGS-08).
 - All template fields present (Summary, Tags, Created, Last Updated, ## Content, ## Related Notes — Rules.md §3; DIGS-05).
-- Wiki-links use `[[Title]]` form, never paths (Rules.md §7; DIGS-10).
+- Wiki-links use `[[basename|Display Title]]` piped form, never bare `[[Title]]`, never folder-prefixed paths (Rules.md §7; DIGS-10). The basename matches the target file's name without `.md` (kebab-case).
 - No write target is `wiki/Rules.md` or anything under `wiki/_templates/` (DIGS-13, D-16, Rules.md §9).
 - No write target escapes `wiki/` (path safety).
 
@@ -160,7 +160,7 @@ If any row fails validation: report the failure in the plan output and HALT befo
 For each row (except CONFLICT-ON-RESEARCH, which goes to Step 7a):
 - CREATE: emit a new file matching the entry's chosen template (`note.md` by default; specialized template if Step 2c set one). All templates share the outer frontmatter schema (Summary, Tags, Created, Last Updated, ## Content, ## Related Notes); only the inside of `## Content` differs by template. Created = now (ISO-8601). Last Updated = same.
 - EDIT: read the existing note, patch its Content section as needed, update Last Updated. Created field is immutable. **Do NOT apply EDIT to any file under `wiki/RESEARCH/` — those are ALERT or CONFLICT-ON-RESEARCH rows, not EDIT rows (D-19).**
-- SPLIT: write the new files; update inbound `[[Old]]` references per Step 4's per-backlink decisions. **Do NOT apply SPLIT to any file under `wiki/RESEARCH/` (D-19). Do NOT rewrite backlinks inside `wiki/RESEARCH/` files — leave them as-is and surface in Step 8 audit.**
+- SPLIT: write the new files; update inbound links to the old slug per Step 4's per-backlink decisions (`[[old-slug|...]]` → `[[new-slug|...]]`). **Do NOT apply SPLIT to any file under `wiki/RESEARCH/` (D-19). Do NOT rewrite backlinks inside `wiki/RESEARCH/` files — leave them as-is and surface in Step 8 audit.**
 - OVERRIDE: write to the OVERRIDDEN category, not the original.
 - RULES-PROPOSAL: do nothing in the wiki. The proposal stays in the plan output for the user.
 - ALERT: do nothing in the wiki. Surface in the plan output only. The user decides whether to update the research note manually.
@@ -212,11 +212,10 @@ After all CONFLICT-ON-RESEARCH rows are resolved (applied or skipped), proceed t
 ### Step 8 — Post-write link audit (DIGS-11, D-08)
 
 After all writes:
-1. Glob all wiki notes again. Extract every `[[X]]` and `[[X|alias]]` reference.
-2. For each, verify a note with H1 `X` exists somewhere in `wiki/**/*.md`.
-3. Surface unresolved references in the digest summary as a section "Unresolved wiki-links".
-
-Aliased links: per D-07, the audit checks the canonical title (the part before `|`), not the alias text.
+1. Glob all wiki notes again. Extract every `[[basename|Display Title]]` reference. Also catch any legacy bare `[[X]]` links — those are out of contract under Rules.md §7 and should be surfaced for repair.
+2. For each piped link, take the part BEFORE `|` (the basename) and verify a file `wiki/**/<basename>.md` exists. The audit is a file-existence check, not an H1 check — Obsidian resolves on filename per Rules.md §7.
+3. For each bare `[[X]]` link found: surface it as a contract violation ("bare link, must be piped") regardless of whether an H1 happens to match.
+4. Surface unresolved references and contract violations in the digest summary as a section "Unresolved wiki-links".
 
 ### Step 9 — Update wiki/topic-index.md (recall navigation map)
 

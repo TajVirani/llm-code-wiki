@@ -31,5 +31,5 @@
 
 ## Related Notes
 
-- [[Recall Skill]]
-- [[Recall Path]]
+- [[recall-skill|Recall Skill]]
+- [[recall-path|Recall Path]]

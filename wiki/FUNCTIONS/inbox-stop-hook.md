@@ -41,6 +41,6 @@
 
 ## Related Notes
 
-- [[Inbox Update Skill]]
-- [[Brainstorm Fallback Cadence]]
-- [[Stop Hook Self Heals Runtime Dir]]
+- [[inbox-update-skill|Inbox Update Skill]]
+- [[brainstorm-fallback-cadence|Brainstorm Fallback Cadence]]
+- [[stop-hook-self-heals-runtime-dir|Stop Hook Self Heals Runtime Dir]]

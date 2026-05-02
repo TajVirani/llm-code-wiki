@@ -32,5 +32,5 @@
 
 ## Related Notes
 
-- [[Inbox Stop Hook]]
-- [[Brainstorm Fallback Cadence]]
+- [[inbox-stop-hook|Inbox Stop Hook]]
+- [[brainstorm-fallback-cadence|Brainstorm Fallback Cadence]]

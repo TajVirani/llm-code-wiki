@@ -27,6 +27,6 @@
 
 ## Related Notes
 
-- [[Recall Path]]
-- [[Recall Prompt Hook]]
-- [[Wiki Recall Subagent]]
+- [[recall-path|Recall Path]]
+- [[recall-prompt-hook|Recall Prompt Hook]]
+- [[wiki-recall-subagent|Wiki Recall Subagent]]

@@ -43,4 +43,4 @@ Use `flowchart TB` with `subgraph` per component named after the real package/fo
 
 ## Related Notes
 
-- [[Note Title]]
+- [[note-basename|Display Title]]

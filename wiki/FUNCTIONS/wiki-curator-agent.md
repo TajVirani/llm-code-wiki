@@ -1,8 +1,8 @@
 
 **Summary**: Curator subagent consumed by `/wiki-digest`; routes session-inbox handle entries and research-doc free prose into filed wiki notes per Rules.md, with D-19 RESEARCH/ write-protection branching by source.
-**Tags**: #agent #digest #routing #function #fork
+**Tags**: #agent #digest #routing #function #fork #templates #linking
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-04-30T16:42:00+00:00
+**Last Updated**: 2026-05-01T23:14:00+00:00
 
 ---
 
@@ -12,7 +12,7 @@
 **Invoked by:** `/wiki-digest` skill body via `context: fork` + `agent: wiki-curator`.
 **Allowed tools:** `Read, Write, Edit, Glob, Grep` (no Bash — true `rm` of source files unavailable; lifecycle steps that would otherwise need shell use Write-based fallbacks).
 
-**Role.** Routes both session-inbox handle-line entries AND research-doc free-prose markdown into filed wiki notes per `wiki/Rules.md`. Under `context: fork` the curator is the only executor; lifecycle steps that older docs described as "the skill body owns" are now owned by the curator itself (see [[Fork Context No Parent Runtime]]).
+**Role.** Routes both session-inbox handle-line entries AND research-doc free-prose markdown into filed wiki notes per `wiki/Rules.md`. Under `context: fork` the curator is the only executor; lifecycle steps that older docs described as "the skill body owns" are now owned by the curator itself (see [[fork-context-no-parent-runtime|Fork Context No Parent Runtime]]).
 
 **Research-doc decomposition.** For research docs, applies Rules.md §6 to derive `{slug, title, category, tags, summary}` per concept:
 
@@ -22,6 +22,14 @@
 Each derived concept becomes a virtual entry that joins the same routing pipeline as session-inbox entries.
 
 **Same-concept detection.** Filename + title + tag overlap (2+ matching signals → EDIT existing; 0–1 → CREATE new). Never embeddings — that is anti-feature A10.
+
+**Step 2c — Specialized template selection.** Per Rules.md §12, the curator selects a specialized template from `wiki/_templates/` when one of six triggers fires (FSM-shaped code, cross-file request path, decision branches, component boundary, orchestration with named sub-flows, recurring pattern); otherwise falls back to `note.md`. Triggers evaluate in order, first match wins. Step 7 CREATE writes against the chosen template — all templates share the outer Summary/Tags/Created/Last Updated/Content/Related Notes schema; only the inside of `## Content` differs. The curator never authors templates and never invents new triggers; new triggers must amend Rules.md §12 in the same change as the template that supports them, surfaced as a `RULES-PROPOSAL` row.
+
+**Piped wiki-link contract (Rules.md §3 + §7).** All internal links written by the curator use the piped form `[[note-basename|Display Title]]` — bare `[[Title]]` is forbidden (see [[piped-wiki-link-contract|Piped Wiki Link Contract]]). The contract shows up in three curator steps:
+
+- **Step 4 split-backlink rewrites.** When splitting a note, grep `wiki/**/*.md` for `[[old-slug|...]]` (the canonical form) plus any legacy bare references. Rewrite each to `[[new-slug|Display Title]]`, preserving the original display title verbatim per D-07; if absent, derive from the new split's H1.
+- **Step 6 plan validation.** Every CREATE/EDIT/SPLIT row's body is scanned for `[[...]]` references. Bare links halt the apply step as contract violations.
+- **Step 8 post-write link audit.** The audit takes the part before `|` as a basename and verifies `wiki/**/<basename>.md` exists — a file-existence check, NOT an H1 match (Obsidian resolves on filename). Bare `[[X]]` references are surfaced as contract violations regardless of whether an H1 happens to match.
 
 **D-19 RESEARCH/ write-protection branches by source:**
 
@@ -39,7 +47,8 @@ Each derived concept becomes a virtual entry that joins the same routing pipelin
 
 ## Related Notes
 
-- [[Wiki Digest Skill]]
-- [[Research Doc Ingestion]]
-- [[Curator Step 9 Index Update]]
-- [[Fork Context No Parent Runtime]]
+- [[wiki-digest-skill|Wiki Digest Skill]]
+- [[research-doc-ingestion|Research Doc Ingestion]]
+- [[curator-step-9-index-update|Curator Step 9 Index Update]]
+- [[fork-context-no-parent-runtime|Fork Context No Parent Runtime]]
+- [[piped-wiki-link-contract|Piped Wiki Link Contract]]

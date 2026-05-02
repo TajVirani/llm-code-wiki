@@ -37,4 +37,4 @@ sequenceDiagram
 
 ## Related Notes
 
-- [[Note Title]]
+- [[note-basename|Display Title]]

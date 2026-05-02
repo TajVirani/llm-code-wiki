@@ -40,4 +40,4 @@ For each branch, one sentence describing what code path it represents and when t
 
 ## Related Notes
 
-- [[Note Title]]
+- [[note-basename|Display Title]]

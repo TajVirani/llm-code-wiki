@@ -27,4 +27,4 @@
 
 ## Related Notes
 
-- [[Skill Naming Wiki Prefix]]
+- [[skill-naming-wiki-prefix|Skill Naming Wiki Prefix]]

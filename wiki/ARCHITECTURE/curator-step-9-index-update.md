@@ -25,5 +25,5 @@ The `wiki-curator` protocol has a Step 9 that runs *after* the post-write link a
 
 ## Related Notes
 
-- [[Topic Index As Recall Map]]
-- [[Recall Path]]
+- [[topic-index-as-recall-map|Topic Index As Recall Map]]
+- [[recall-path|Recall Path]]

@@ -25,6 +25,6 @@
 
 ## Related Notes
 
-- [[Recall Path]]
-- [[Wiki Recall Subagent]]
-- [[Recall Skill]]
+- [[recall-path|Recall Path]]
+- [[wiki-recall-subagent|Wiki Recall Subagent]]
+- [[recall-skill|Recall Skill]]

@@ -66,18 +66,18 @@ If after filtering you have zero relevant notes, say so explicitly in the output
 
 ### Step 6 — Return the recall payload
 
-Output exactly this structure to the parent thread. Use Obsidian wiki-link syntax (`[[Title]]`) per Rules.md §7 — the parent can resolve titles to files. Cite paths inline where useful for grep navigation.
+Output exactly this structure to the parent thread. Use piped Obsidian wiki-link syntax (`[[basename|Display Title]]`) per Rules.md §7 — the basename equals the target file's name without `.md`. Cite paths inline where useful for grep navigation.
 
 ```
 ## Recalled wiki context
 
 ### Relevant notes
-- [[Note Title]] (`wiki/CATEGORY/slug.md`) — One-line why-it-matters for this task.
-- [[Other Note]] (`wiki/CATEGORY/other.md`) — One line.
+- [[note-slug|Note Title]] (`wiki/CATEGORY/note-slug.md`) — One-line why-it-matters for this task.
+- [[other-slug|Other Note]] (`wiki/CATEGORY/other-slug.md`) — One line.
 
 ### Key decisions / patterns to honor
-- Specific decision or constraint, citing [[Note Title]].
-- Specific pattern to follow, citing [[Other Note]].
+- Specific decision or constraint, citing [[note-slug|Note Title]].
+- Specific pattern to follow, citing [[other-slug|Other Note]].
 
 ### Caveats
 - (Only if applicable: deprecated note still in use, conflicting decisions, gaps the user should know about.)

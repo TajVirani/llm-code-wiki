@@ -26,5 +26,5 @@
 
 ## Related Notes
 
-- [[Inbox Stop Hook]]
-- [[Inbox Update Skill]]
+- [[inbox-stop-hook|Inbox Stop Hook]]
+- [[inbox-update-skill|Inbox Update Skill]]

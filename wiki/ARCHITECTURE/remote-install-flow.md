@@ -34,6 +34,6 @@ The `/wiki-install` slash command is *not* yet registered at this point — it o
 
 ## Related Notes
 
-- [[Wiki Install Skill]]
-- [[Update Flow]]
-- [[Wiki Update Skill]]
+- [[wiki-install-skill|Wiki Install Skill]]
+- [[update-flow|Update Flow]]
+- [[wiki-update-skill|Wiki Update Skill]]

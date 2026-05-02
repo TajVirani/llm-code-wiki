@@ -21,6 +21,6 @@ Claude Code's `Glob` and `Grep` tools shell out to `ripgrep` (`rg`) under the ho
 
 ## Related Notes
 
-- [[Recall Path]]
-- [[Stop Hook Self Heals Runtime Dir]]
-- [[Skill Bash Injection Isolation]]
+- [[recall-path|Recall Path]]
+- [[stop-hook-self-heals-runtime-dir|Stop Hook Self Heals Runtime Dir]]
+- [[skill-bash-injection-isolation|Skill Bash Injection Isolation]]

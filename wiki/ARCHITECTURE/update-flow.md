@@ -32,6 +32,6 @@
 
 ## Related Notes
 
-- [[Wiki Update Skill]]
-- [[Remote Install Flow]]
-- [[Wiki Install Skill]]
+- [[wiki-update-skill|Wiki Update Skill]]
+- [[remote-install-flow|Remote Install Flow]]
+- [[wiki-install-skill|Wiki Install Skill]]

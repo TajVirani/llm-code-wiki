@@ -26,7 +26,7 @@
 
 ## Related Notes
 
-- [[Recall Path]]
-- [[Recall Prompt Hook]]
-- [[Recall Skill]]
-- [[Topic Index As Recall Map]]
+- [[recall-path|Recall Path]]
+- [[recall-prompt-hook|Recall Prompt Hook]]
+- [[recall-skill|Recall Skill]]
+- [[topic-index-as-recall-map|Topic Index As Recall Map]]

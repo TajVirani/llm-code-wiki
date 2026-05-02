@@ -16,4 +16,4 @@ Without this self-heal, the `wiki-install` smoke test fails on any project that 
 
 ## Related Notes
 
-- [[Recall Path]]
+- [[recall-path|Recall Path]]

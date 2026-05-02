@@ -27,6 +27,6 @@
 
 ## Related Notes
 
-- [[Wiki Digest Skill]]
-- [[Wiki Curator Agent]]
-- [[Skill Bash Injection Isolation]]
+- [[wiki-digest-skill|Wiki Digest Skill]]
+- [[wiki-curator-agent|Wiki Curator Agent]]
+- [[skill-bash-injection-isolation|Skill Bash Injection Isolation]]

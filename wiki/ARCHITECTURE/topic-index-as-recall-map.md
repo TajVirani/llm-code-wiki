@@ -26,6 +26,6 @@
 
 ## Related Notes
 
-- [[Recall Path]]
-- [[Wiki Recall Subagent]]
-- [[Curator Step 9 Index Update]]
+- [[recall-path|Recall Path]]
+- [[wiki-recall-subagent|Wiki Recall Subagent]]
+- [[curator-step-9-index-update|Curator Step 9 Index Update]]

@@ -21,5 +21,5 @@ The `wiki-digest` skill body resets `wiki/inbox/_session.md` to the canonical em
 
 ## Related Notes
 
-- [[Curator Step 9 Index Update]]
-- [[Topic Index As Recall Map]]
+- [[curator-step-9-index-update|Curator Step 9 Index Update]]
+- [[topic-index-as-recall-map|Topic Index As Recall Map]]

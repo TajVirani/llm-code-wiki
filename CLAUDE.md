@@ -27,11 +27,15 @@ This project uses the llm-code-wiki system to keep a codebase wiki current witho
 
 **Wiki contract:** `wiki/Rules.md` defines all conventions (category folders, filename kebab-case, note template, ≤25-word summaries, 1,000-word note cap, Obsidian wiki-link syntax, `topic-index.md` auto-maintenance). The curator never modifies `wiki/Rules.md` autonomously — rule-change suggestions surface as proposals.
 
+**Orientation layer (MODULES).** `wiki/MODULES/` contains ~6–10 cluster summaries — orienting overviews of major capability areas, each linking down to detail notes in ARCHITECTURE/FUNCTIONS/RESEARCH/DIAGRAMS. The curator gates every MODULES note through a deletion-test (≥5 of 7 inner H2s — `Purpose` + `Boundary` mandatory plus ≥3 of {Triggers, Storage, Behavior, Rules & Invariants, Children}); shallow modules surface as `SHALLOW-MODULE` plan rows instead of being written. Module-cluster shape is detected by trigger 7 (S1 ≥3 wiki-link/basename references; S2 ≥3 of 4 keyword categories — trigger/storage/executor/outcome; S3 ≥2 distinct dominant domain tags; S4 word band 150–1000). The recall agent prefers `### Modules` bullets in `topic-index.md` for orienting queries ("what is", "how does", "overview of") and `### Notes` for narrow ones. Run `/wiki-modules` for a read-only scan of cluster coverage (proposals + audit).
+
 **Quick reference:**
 - Inbox: `wiki/inbox/_session.md`
+- Modules: `wiki/MODULES/`
+- Module audit & synth: run `/wiki-modules` (read-only)
 - Research-doc drop zone: `wiki/inbox/<your-doc>.md` (any `.md` not named `_session.md` or starting with `_`)
 - Inbox archive: `wiki/inbox/_archive/<TS>-session.md` and `<TS>-research-<filename>.md`
-- Topic index (recall map): `wiki/topic-index.md` (auto-maintained — do not edit by hand)
+- Topic index (recall map): `wiki/topic-index.md` (auto-maintained — do not edit by hand; H3 split: `### Modules` orientation, `### Notes` detail)
 - Digest: run `/wiki-digest` at a review checkpoint (consumes both session inbox and any research docs)
 - Recall: run `/wiki-recall <query>` to consult the wiki on demand
 - Update: run `/wiki-update` to pull upstream improvements (compares `.claude/llm-code-wiki.version` against upstream `VERSION`, shows changelog, refreshes `.claude/` while leaving `wiki/Rules.md`, `wiki/_templates/`, `wiki/topic-index.md` alone)

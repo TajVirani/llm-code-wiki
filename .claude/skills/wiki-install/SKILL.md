@@ -30,6 +30,7 @@ for f in \
   "$CLAUDE_PROJECT_DIR/.claude/skills/inbox-update/SKILL.md" \
   "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-digest/SKILL.md" \
   "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-recall/SKILL.md" \
+  "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-modules/SKILL.md" \
   "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md" \
   "$CLAUDE_PROJECT_DIR/.claude/skills/wiki-install/templates/topic-index.seed.md" \
   "$CLAUDE_PROJECT_DIR/.claude/agents/wiki-curator.md" \
@@ -81,6 +82,16 @@ else
   mkdir -p "$CLAUDE_PROJECT_DIR/wiki/inbox"
   record INBOX "created"
   echo "[wiki-install] Created wiki/inbox/"
+fi
+
+# --- wiki/MODULES/ (orientation layer; populated by digest, never preseeded) ---
+if [ -d "$CLAUDE_PROJECT_DIR/wiki/MODULES" ]; then
+  record MODULES_DIR "already existed"
+  echo "[wiki-install] wiki/MODULES/ exists, skipping"
+else
+  mkdir -p "$CLAUDE_PROJECT_DIR/wiki/MODULES"
+  record MODULES_DIR "created"
+  echo "[wiki-install] Created wiki/MODULES/"
 fi
 
 # --- wiki/topic-index.md (materialized from shipped seed template) ---
@@ -314,6 +325,7 @@ cat <<EOF
 [wiki-install] wiki/_templates/note.md           — $(get NOTE_TPL)
 [wiki-install] wiki/Rules.md                     — $(get RULES)
 [wiki-install] wiki/inbox/                       — $(get INBOX)
+[wiki-install] wiki/MODULES/                     — $(get MODULES_DIR)
 [wiki-install] wiki/topic-index.md               — $(get TOPIC_INDEX)
 [wiki-install] settings.json (Stop)              — $(get SETTINGS_STOP)
 [wiki-install] settings.json (UserPromptSubmit)  — $(get SETTINGS_RECALL)

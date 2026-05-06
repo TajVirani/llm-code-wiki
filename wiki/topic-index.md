@@ -2,7 +2,7 @@
 **Summary**: Greppable topic-to-files index — entry point for wiki recall.
 **Tags**: #wiki #index #recall
 **Created**: 2026-04-30T00:00:00+00:00
-**Last Updated**: 2026-05-01T23:14:00+00:00
+**Last Updated**: 2026-05-06T00:00:00+00:00
 
 ---
 
@@ -22,6 +22,10 @@ Rules:
 
 Do not edit by hand — bullets that are not the result of a digest run will be overwritten on the next /wiki-digest.
 -->
+
+### Modules
+
+### Notes
 
 - **brainstorm-fallback-cadence** — Default 10-turn cadence for brainstorm-fallback capture, override via `LCW_BRAINSTORM_TURNS`, ≤5 entries per fire, counter resets on real captures. Files: RESEARCH/brainstorm-fallback-cadence.md
 - **curator-step-9-index-update** — Curator protocol step that rebuilds topic-index.md after each digest, scoped to topics affected by writes. Files: ARCHITECTURE/curator-step-9-index-update.md

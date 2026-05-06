@@ -17,11 +17,18 @@ You operate against `wiki/topic-index.md` as a navigation map and against `wiki/
 
 ### Step 1 — Read the navigation map
 
-Read `wiki/topic-index.md`. Each line under `## Content` is a bullet of the form:
+Read `wiki/topic-index.md`. Inside `## Content` the index has two H3 sections (when present):
 
-```
-- **topic** — Summary (≤25 words). Files: PATH1, PATH2
-```
+- `### Modules` — orientation layer, one bullet per `wiki/MODULES/<slug>.md`. Bullet form: `- **<slug>** — Summary (≤25 words). Module: MODULES/<slug>.md`
+- `### Notes` — detail layer (ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS). Bullet form: `- **topic** — Summary (≤25 words). Files: PATH1, PATH2`
+
+Older indexes may be a flat bullet list under `## Content` with no H3 split — treat that as one section called `### Notes` (no `### Modules` available).
+
+**Orienting vs narrow query.** Classify the user's task description:
+
+- **Orienting** — patterns: "what is", "how does", "how do", "overview of", "explain", "walk me through", "give me a tour of". The user wants to understand a capability area at module granularity. Search `### Modules` FIRST and prefer those hits as the primary entry point. Drill into the matched module's Children section for specifics.
+- **Narrow** — patterns: specific function name, endpoint path, file path, error message, value, "where is X defined", "why does Y return Z". The user wants leaf-level facts. Search `### Notes` directly; skip `### Modules` unless a direct module match is obvious.
+- **Mixed-intent** — both signals present. Return matches from both sections.
 
 If the index file is missing or has zero topic bullets, fall through to Step 3 (grep-only recall) and surface the absent index in your final output.
 
@@ -29,7 +36,11 @@ If the index file is missing or has zero topic bullets, fall through to Step 3 (
 
 1. Extract keywords from the task description: 3–8 terms — verbs, nouns, proper nouns. Drop stop words and generic project verbs ("implement", "build", "add", "plan").
 2. For each keyword, scan the index bullets. A topic bullet matches if the keyword appears (case-insensitive) in the topic name OR in the summary text.
-3. Collect every file path from matched bullets. This is your **primary candidate set**. Preserve order of first appearance.
+3. Apply the orienting/narrow split from Step 1:
+   - **Orienting query** → match against `### Modules` first; collect `Module:` paths into the primary candidate set. Then match against `### Notes` for any leaf-level supporting hits as secondary candidates.
+   - **Narrow query** → match against `### Notes` only; collect `Files:` paths into the primary candidate set. Skip `### Modules` unless a direct module bullet matches the task verbatim.
+   - **Mixed-intent query** → match both sections; module hits primary, leaf hits secondary.
+4. Preserve order of first appearance within each set.
 
 ### Step 3 — Grep the corpus for additional hits
 

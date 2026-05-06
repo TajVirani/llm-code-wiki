@@ -20,9 +20,9 @@ One-to-three sentences describing the artifact in its current state.
 ```
 
 Rules:
-- `CATEGORY` is one of: `ARCHITECTURE`, `FUNCTIONS`, `RESEARCH`, `SELF`, `DIAGRAMS` (from `wiki/Rules.md §2`)
-- `slug` is kebab-case matching the concept name
-- `path` is the primary source file path, or `—` for non-file artifacts (decisions, session notes)
+- `CATEGORY` is one of: `ARCHITECTURE`, `FUNCTIONS`, `RESEARCH`, `SELF`, `DIAGRAMS`, `MODULES` (from `wiki/Rules.md §2`)
+- `slug` is kebab-case matching the concept name. For `MODULES::`, use a bare single-concept slug (`scheduling`, not `scheduler-overview`) per Rules.md §5.
+- `path` is the primary source file path, or `—` for non-file artifacts (decisions, session notes). For `MODULES::`, `path = —` is normal — module summaries are cross-cutting and rarely map to one source file.
 - `#tags` are lowercase, 2–5 tags
 - Handle line MUST start at column 0 (no leading whitespace) — required for `^@ ` grep-prune
 - Body is factual present-tense: "X does Y" — not past-tense: "Added X" is wrong
@@ -124,6 +124,19 @@ Read `wiki/inbox/_session.md`. For each item on the scratch-list:
 > ```
 >
 > **Turn 2:** User asks you to remove `add`. You delete it from `math.ts`. Scratch-list: `math.ts:add` (deleted). Grep for `^@ [A-Z]*::add` finds the entry. Remove the entire block. After this turn, the inbox has zero entries for `add`. A digest at this point produces zero filed notes for `add`. **This is correct.**
+
+## Optional MODULES auto-handle (synthesis turns)
+
+When a turn touches ≥4 ARCHITECTURE/FUNCTIONS notes (filed or scratch-list) that share ≥2 tags AND the user's most recent message reads as a synthesis prompt ("how does X work overall?", "give me an overview of X", "explain how X fits together"), you MAY emit one `@ MODULES::<slug>` handle in addition to (or instead of) the per-artifact handles. The slug is a bare single-concept kebab name derived from the synthesis topic (`scheduling`, not `scheduler-overview`); `path = —`.
+
+This is a soft hint — the curator's trigger 7 still validates the body against the four signals (S1+S2+S3+S4) and the deletion-test gate before any MODULES file is written. If the body doesn't earn the route, the curator emits a `SHALLOW-MODULE` row and skips the write. Surface the auto-handle in the entry body so the user can see why it landed:
+
+```
+@ MODULES::scheduling  •  —  •  #module #scheduling #cron #queue
+Synthesis-prompt heuristic: this turn touched src/scheduler/jobs.ts, src/queue/handlers.ts, src/cron/runner.ts, db/migrations/0042-scheduler.sql (≥4 files, shared #scheduling tag). User asked "how does scheduling work overall?" — emitting MODULES handle for the curator to validate via trigger 7.
+```
+
+If the trigger 7 signals don't fire on the body, the curator drops the auto-handle silently. No further action from this skill.
 
 ## Full-sweep trigger (D-02, hybrid pruning)
 

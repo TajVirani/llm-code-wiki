@@ -32,7 +32,7 @@ The research-doc discovery always scans `wiki/inbox/` regardless of `$ARGUMENTS`
 Read the resolved session inbox path. If the file does not exist: note "No session inbox found at <path>" and continue to 1b (a missing session inbox is not fatal — research docs may still be present).
 
 Count the entry handle lines:
-!`P="${ARGUMENTS:-wiki/inbox/_session.md}"; grep -cE '^@ (ARCHITECTURE|FUNCTIONS|RESEARCH|SELF|DIAGRAMS)::' "$P" 2>/dev/null || echo 0`
+!`P="${ARGUMENTS:-wiki/inbox/_session.md}"; grep -cE '^@ (ARCHITECTURE|FUNCTIONS|RESEARCH|SELF|DIAGRAMS|MODULES)::' "$P" 2>/dev/null || echo 0`
 
 ### 1b. Research docs
 
@@ -89,7 +89,67 @@ Inputs:
 - Wiki rules (authoritative — re-read fresh per Pitfall 12, NOT a stale skill-body mirror):
   !`cat wiki/Rules.md`
 
-If `disableSkillShellExecution` is set on this Claude Code instance, the bash injections above produce empty strings. In that case, the curator must Read each input itself using its Read/Glob tools — including globbing `wiki/inbox/*.md` (excluding `_session.md` and underscore-prefixed files) to recover the research-doc list. The curator's prompt covers this fallback (W7 extension).
+### 3a. Trigger 7 (module-cluster) signal pre-evaluation
+
+The curator's Step 2c trigger 7 (Rules.md §12 row 7) requires four deterministic signals (S1+S2+S3+S4) computed against each entry/concept body. Compute them here in bash so the curator receives labeled values rather than judging "looks like a module" at LLM time.
+
+First, compute the dominant codebase domains used by S3. Domains = the top-10 tags by frequency across `wiki/topic-index.md` bullets (existing index data). One-shot, run once per digest:
+
+!`grep -oE '#[a-z][a-z0-9-]*' wiki/topic-index.md 2>/dev/null | sort | uniq -c | sort -rn | head -n 10 | awk '{print $2}' | paste -sd ',' -; echo; echo "(top-10 dominant tags from topic-index.md — used as S3 domain set; if blank, S3 falls back to a count of distinct #tags in the body)"`
+
+Then for the **session inbox**, emit per-entry signals. Each entry is a `^@ ` handle line followed by a body paragraph until the next `^@ ` line or EOF. Print one labeled block per entry slug:
+
+!`P="${ARGUMENTS:-wiki/inbox/_session.md}"; awk '
+  /^@ / {
+    if (slug != "") { emit() }
+    slug=$0; sub(/^@ [A-Z]+::/, "", slug); sub(/[ \t].*$/, "", slug)
+    body=""
+    next
+  }
+  { body = body "\n" $0 }
+  END { if (slug != "") emit() }
+  function emit() {
+    s1 = gsub(/\[\[[^\]|]+/, "&", body)
+    trig=0; store=0; ex=0; out=0
+    if (match(tolower(body), /trigger|entry|input|request|user picks|submits|cron|scheduled|queue|event/)) trig=1
+    if (match(tolower(body), /saved to|stored in|persists|database|\<db\>|table|queue|state/)) store=1
+    if (match(tolower(body), /runs|executes|processes|reconciles|handler|worker|on a timer|loops/)) ex=1
+    if (match(tolower(body), /produces|emits|writes|notifies|returns|responds|completes/)) out=1
+    s2sum = trig+store+ex+out
+    s3 = 0
+    n = split(body, _, /#[a-z][a-z0-9-]*/)
+    s3 = n - 1
+    s4 = split(body, _, /[ \t\n]+/) - 1
+    print "### Trigger 7 signals for entry " slug ": S1=" s1 ", S2=[trig=" trig ", store=" store ", exec=" ex ", out=" out " | sum=" s2sum "/4], S3=" s3 ", S4=" s4
+    slug=""; body=""
+  }
+' "$P" 2>/dev/null`
+
+Then for **each research doc**, emit one labeled block per doc (the doc body is the whole file):
+
+!`for f in $(find wiki/inbox -maxdepth 1 -type f -name '*.md' ! -name '_*' 2>/dev/null | sort); do
+  body=$(cat "$f")
+  s1=$(echo "$body" | grep -oE '\[\[[^\]|]+' | wc -l)
+  trig=$(echo "$body" | grep -ciE '\b(trigger|entry|input|request|user picks|submits|cron|scheduled|queue|event)\b'); trig=$([ "$trig" -gt 0 ] && echo 1 || echo 0)
+  store=$(echo "$body" | grep -ciE '\b(saved to|stored in|persists|database|db|table|queue|state)\b'); store=$([ "$store" -gt 0 ] && echo 1 || echo 0)
+  ex=$(echo "$body" | grep -ciE '\b(runs|executes|processes|reconciles|handler|worker|on a timer|loops)\b'); ex=$([ "$ex" -gt 0 ] && echo 1 || echo 0)
+  out=$(echo "$body" | grep -ciE '\b(produces|emits|writes|notifies|returns|responds|completes)\b'); out=$([ "$out" -gt 0 ] && echo 1 || echo 0)
+  s2sum=$((trig + store + ex + out))
+  s3=$(echo "$body" | grep -oE '#[a-z][a-z0-9-]*' | sort -u | wc -l)
+  s4=$(echo "$body" | wc -w)
+  echo "### Trigger 7 signals for research-doc $f: S1=$s1, S2=[trig=$trig, store=$store, exec=$ex, out=$out | sum=$s2sum/4], S3=$s3, S4=$s4"
+done`
+
+The curator reads these labeled blocks and applies the all-four-signals rule deterministically — no LLM judgment about whether a body "looks like" a module. Trigger 7 fires when **all four** of the following are true per entry:
+
+- S1 ≥ 3
+- S2 sum ≥ 3 (≥3 of 4 keyword categories present)
+- S3 ≥ 2 distinct dominant domains
+- S4 ∈ [150, 1000]
+
+If trigger 7 fires on a non-MODULES handle, the curator emits an OVERRIDE row routing to MODULES per Step 2c discipline.
+
+If `disableSkillShellExecution` is set on this Claude Code instance, the bash injections above produce empty strings. In that case, the curator must Read each input itself using its Read/Glob tools — including globbing `wiki/inbox/*.md` (excluding `_session.md` and underscore-prefixed files) to recover the research-doc list, AND computing the trigger 7 signals itself with Read/Grep on each entry/concept body as a degraded path. The curator's prompt covers this fallback (W7 extension).
 
 ## Step 4 — Curator runs (this is where the fork happens)
 

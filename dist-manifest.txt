@@ -27,6 +27,7 @@ CHANGELOG.md
 .claude/skills/wiki-install/SETTINGS-SNIPPET.md
 .claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md
 .claude/skills/wiki-install/templates/topic-index.seed.md
+.claude/skills/wiki-modules/SKILL.md
 .claude/skills/wiki-recall/SKILL.md
 .claude/skills/wiki-rules/SKILL.md
 .claude/skills/wiki-update/SKILL.md
@@ -45,3 +46,4 @@ CHANGELOG.md
 # .claude/skills/wiki-install/templates/topic-index.seed.md at install time).
 wiki/Rules.md  keep
 wiki/_templates/note.md  keep
+wiki/_templates/module.md  keep

@@ -25,24 +25,28 @@ Read-only by contract. The skill never writes to `wiki/`. Dispatching changes is
   !`cat wiki/topic-index.md 2>/dev/null`
 
 - Domain-tag dominance set (top-10 tag frequency across topic-index — used to filter cluster signals from noise):
-  !`grep -oE '#[a-z][a-z0-9-]*' wiki/topic-index.md 2>/dev/null | sort | uniq -c | sort -rn | head -n 10 | awk '{print $2}'`
+  !`grep -oE '#[a-z][a-z0-9-]*' wiki/topic-index.md 2>/dev/null | sort | uniq -c | sort -rn | head -n 10 | sed -E 's/^[[:space:]]+[0-9]+[[:space:]]+//'`
 
 ## Cluster detection (deterministic, no embeddings)
 
-Three signals — all bash-evaluable, no semantic similarity (anti-feature A10):
+Three signals — all bash-evaluable, no semantic similarity (anti-feature A10).
+
+(Implementation note: these blocks deliberately avoid `awk` — Claude Code's `!`-injection layer expands `$N` references in awk scripts to empty strings before the shell sees them, breaking field access (see `wiki/RESEARCH/skill-bash-injection-dollar-n-expansion.md`). All per-line slicing here uses `cut`/`sed`/`grep` + a `while read` loop instead.)
 
 ### Signal 1 — Filename prefix
 
 Group detail-note basenames by their first kebab segment. A prefix with ≥3 notes is a candidate cluster.
 
-!`for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md; done | awk -F'-' '{print $1}' | sort | uniq -c | sort -rn | awk '$1 >= 3 {print $1, $2}'`
+!`for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt prefix; do if [ "$cnt" -ge 3 ]; then echo "$cnt $prefix"; fi; done`
 
 For each `prefix` reported above, list its members (the candidate children pool):
 
-!`for prefix in $(for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md; done | awk -F'-' '{print $1}' | sort | uniq -c | sort -rn | awk '$1 >= 3 {print $2}'); do
-  echo "## prefix=$prefix"
-  find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null | sort
-  echo
+!`for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt prefix; do
+  if [ "$cnt" -ge 3 ]; then
+    echo "## prefix=$prefix"
+    find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null | sort
+    echo
+  fi
 done`
 
 ### Signal 2 — Tag overlap (cluster cohesion)
@@ -63,13 +67,15 @@ Report the cluster mode + misfit list per prefix.
 
 For each prefix-cluster, count `[[wiki-link]]` edges between cluster members:
 
-!`for prefix in $(for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md; done | awk -F'-' '{print $1}' | sort | uniq -c | sort -rn | awk '$1 >= 3 {print $2}'); do
-  total=0
-  for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null); do
-    count=$(grep -oE "\[\[${prefix}-[^]|]*" "$f" 2>/dev/null | wc -l)
-    total=$((total + count))
-  done
-  echo "prefix=$prefix intra-cluster-link-count=$total"
+!`for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt prefix; do
+  if [ "$cnt" -ge 3 ]; then
+    total=0
+    for ff in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null); do
+      count=$(grep -oE "\[\[${prefix}-[^]|]*" "$ff" 2>/dev/null | wc -l)
+      total=$((total + count))
+    done
+    echo "prefix=$prefix intra-cluster-link-count=$total"
+  fi
 done`
 
 High intra-cluster edge density confirms a real cluster. Low density (0–1 edges across ≥3 notes) flags a misleading prefix — the notes happen to share a name root but don't actually reference each other. Skip the proposal in that case.

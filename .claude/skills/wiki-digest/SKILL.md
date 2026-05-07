@@ -93,37 +93,31 @@ Inputs:
 
 The curator's Step 2c trigger 7 (Rules.md §12 row 7) requires four deterministic signals (S1+S2+S3+S4) computed against each entry/concept body. Compute them here in bash so the curator receives labeled values rather than judging "looks like a module" at LLM time.
 
-First, compute the dominant codebase domains used by S3. Domains = the top-10 tags by frequency across `wiki/topic-index.md` bullets (existing index data). One-shot, run once per digest:
+First, compute the dominant codebase domains used by S3. Domains = the top-10 tags by frequency across `wiki/topic-index.md` bullets (existing index data). One-shot, run once per digest. (Note: this block deliberately avoids `awk` — Claude Code's `!`-injection layer expands `$N` references in awk scripts, breaking field access, so all per-line slicing here uses `sed`/`grep`/`cut` instead.)
 
-!`grep -oE '#[a-z][a-z0-9-]*' wiki/topic-index.md 2>/dev/null | sort | uniq -c | sort -rn | head -n 10 | awk '{print $2}' | paste -sd ',' -; echo; echo "(top-10 dominant tags from topic-index.md — used as S3 domain set; if blank, S3 falls back to a count of distinct #tags in the body)"`
+!`grep -oE '#[a-z][a-z0-9-]*' wiki/topic-index.md 2>/dev/null | sort | uniq -c | sort -rn | head -n 10 | sed -E 's/^[[:space:]]*[0-9]+[[:space:]]+//' | paste -sd ',' -; echo; echo "(top-10 dominant tags from topic-index.md — used as S3 domain set; if blank, S3 falls back to a count of distinct #tags in the body)"`
 
-Then for the **session inbox**, emit per-entry signals. Each entry is a `^@ ` handle line followed by a body paragraph until the next `^@ ` line or EOF. Print one labeled block per entry slug:
+Then for the **session inbox**, emit per-entry signals. Each entry is a `^@ ` handle line followed by a body paragraph until the next `^@ ` line or EOF. We split the inbox into per-entry chunks via `csplit` and compute signals on each chunk with the same bash/grep approach used by the research-doc loop below — no awk, no `$N` references. Print one labeled block per entry slug:
 
-!`P="${ARGUMENTS:-wiki/inbox/_session.md}"; awk '
-  /^@ / {
-    if (slug != "") { emit() }
-    slug=$0; sub(/^@ [A-Z]+::/, "", slug); sub(/[ \t].*$/, "", slug)
-    body=""
-    next
-  }
-  { body = body "\n" $0 }
-  END { if (slug != "") emit() }
-  function emit() {
-    s1 = gsub(/\[\[[^\]|]+/, "&", body)
-    trig=0; store=0; ex=0; out=0
-    if (match(tolower(body), /trigger|entry|input|request|user picks|submits|cron|scheduled|queue|event/)) trig=1
-    if (match(tolower(body), /saved to|stored in|persists|database|\<db\>|table|queue|state/)) store=1
-    if (match(tolower(body), /runs|executes|processes|reconciles|handler|worker|on a timer|loops/)) ex=1
-    if (match(tolower(body), /produces|emits|writes|notifies|returns|responds|completes/)) out=1
-    s2sum = trig+store+ex+out
-    s3 = 0
-    n = split(body, _, /#[a-z][a-z0-9-]*/)
-    s3 = n - 1
-    s4 = split(body, _, /[ \t\n]+/) - 1
-    print "### Trigger 7 signals for entry " slug ": S1=" s1 ", S2=[trig=" trig ", store=" store ", exec=" ex ", out=" out " | sum=" s2sum "/4], S3=" s3 ", S4=" s4
-    slug=""; body=""
-  }
-' "$P" 2>/dev/null`
+!`P="${ARGUMENTS:-wiki/inbox/_session.md}"
+[ -f "$P" ] || exit 0
+TMP=$(mktemp -d 2>/dev/null) || exit 0
+csplit -s -z -f "$TMP/entry-" -b "%03d.txt" "$P" '/^@ /' '{*}' 2>/dev/null
+for f in "$TMP"/entry-*.txt; do
+  [ -f "$f" ] || continue
+  head -1 "$f" | grep -qE '^@ [A-Z]+::' || continue
+  slug=$(head -1 "$f" | sed -E 's/^@ [A-Z]+:://; s/[[:space:]].*$//')
+  s1=$(grep -oE '\[\[[^]|]+' "$f" 2>/dev/null | wc -l)
+  trig=$(grep -ciE '\b(trigger|entry|input|request|user picks|submits|cron|scheduled|queue|event)\b' "$f" 2>/dev/null); trig=$([ "$trig" -gt 0 ] && echo 1 || echo 0)
+  store=$(grep -ciE '\b(saved to|stored in|persists|database|db|table|queue|state)\b' "$f" 2>/dev/null); store=$([ "$store" -gt 0 ] && echo 1 || echo 0)
+  ex=$(grep -ciE '\b(runs|executes|processes|reconciles|handler|worker|on a timer|loops)\b' "$f" 2>/dev/null); ex=$([ "$ex" -gt 0 ] && echo 1 || echo 0)
+  out=$(grep -ciE '\b(produces|emits|writes|notifies|returns|responds|completes)\b' "$f" 2>/dev/null); out=$([ "$out" -gt 0 ] && echo 1 || echo 0)
+  s2sum=$((trig + store + ex + out))
+  s3=$(grep -oE '#[a-z][a-z0-9-]*' "$f" 2>/dev/null | sort -u | wc -l)
+  s4=$(wc -w < "$f")
+  echo "### Trigger 7 signals for entry $slug: S1=$s1, S2=[trig=$trig, store=$store, exec=$ex, out=$out | sum=$s2sum/4], S3=$s3, S4=$s4"
+done
+rm -rf "$TMP"`
 
 Then for **each research doc**, emit one labeled block per doc (the doc body is the whole file):
 

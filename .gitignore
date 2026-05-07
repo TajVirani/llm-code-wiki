@@ -7,6 +7,7 @@
 .claude/inbox/.disabled
 .claude/inbox/.recall-counter
 .claude/inbox/.recall-disabled
+.claude/inbox/.turn-count
 
 # Live session inbox — derived view, regenerated each session by inbox-update skill
 wiki/inbox/_session.md

@@ -20,7 +20,12 @@ VERSION
 CHANGELOG.md
 
 # Skills
+.claude/skills/design-pattern-doc/SKILL.md
+.claude/skills/design-pattern-doc/CONVENTIONS-FORMAT.md
+.claude/skills/design-pattern-doc/TEMPLATE.md
+.claude/skills/design-pattern-doc/conventions.md
 .claude/skills/inbox-update/SKILL.md
+.claude/skills/wiki-code-crawler/SKILL.md
 .claude/skills/wiki-digest/SKILL.md
 .claude/skills/wiki-digest/reference/non-fork-fallback.md
 .claude/skills/wiki-install/SKILL.md
@@ -33,6 +38,7 @@ CHANGELOG.md
 .claude/skills/wiki-update/SKILL.md
 
 # Agents
+.claude/agents/module-author.md
 .claude/agents/wiki-curator.md
 .claude/agents/wiki-recall.md
 

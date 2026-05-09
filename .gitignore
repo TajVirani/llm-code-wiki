@@ -12,6 +12,17 @@
 # Live session inbox — derived view, regenerated each session by inbox-update skill
 wiki/inbox/_session.md
 
+# Inbox archives — per-machine crash-safety net for /wiki-digest, not source of truth
+wiki/inbox/_archive/
+
+# Codebase-crawler scratch — inventory/graph/concepts JSON for /wiki-code-crawler
+_docgen/
+_docgen/**
+
+# macOS Finder metadata
+.DS_Store
+**/.DS_Store
+
 .agents
 .agents/**
 

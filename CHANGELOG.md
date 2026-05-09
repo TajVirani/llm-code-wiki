@@ -5,6 +5,25 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 The `Migration` subsection of each release lists anything `/wiki-update` cannot do for you — manual steps a consumer must take when upgrading past that version.
 
+## [1.3.0] — 2026-05-09
+
+### Added
+- **`docs/adr/0001-modules-ownership-and-detection.md`** — formal ADR codifying that `/wiki-modules` is the sole writer to `wiki/MODULES/`. The wiki-curator no longer writes MODULES notes; `@ MODULES::<slug>` handles in `_session.md` surface as `MODULES-VIA-DIGEST-DEPRECATED` plan rows during digest with no write performed.
+- **`module-author` subagent** (`.claude/agents/module-author.md`) — dispatched in parallel by `/wiki-modules`, one per qualifying cluster. Reads its cluster's children, applies pre-author and post-author depth gates, and writes `wiki/MODULES/<slug>.md` plus the matching `### Modules` row in `wiki/topic-index.md`.
+- **`/design-pattern-doc` skill** — discover and document a multi-file design pattern in the codebase. Produces a ground-truth doc plus a drift report against existing project documentation. Use for cross-cutting patterns and subsystem wiring.
+
+### Changed
+- **`/wiki-modules` cluster-detection signals rebased per ADR 0001** — three deterministic signals: S1 filename prefix ≥3 notes (bootstrap), S2 single-dominant-tag intersection across all members (replaces the prior top-2 mode test — admits clusters whose members diverge into specialized topics past one shared concept), S3 external fan-in: ≥1 note outside the cluster links to ≥2 distinct cluster members (replaces the prior intra-cluster-link density test — measures whether the cluster has an external interface, not just internal cohesion).
+- **`/wiki-digest` no longer pre-computes module-cluster signals.** Trigger 7 (Rules.md §12 row 7) was removed from the digest pipeline. `/wiki-modules` owns the orientation layer end-to-end. The wiki-digest skill body is leaner: input gathering for the curator, archive-then-write, post-write link audit, lifecycle cleanup.
+- **`wiki-curator` write surface narrowed.** Curator never writes `wiki/MODULES/<slug>.md` and never modifies `wiki/Rules.md` or `wiki/_templates/`. Path-safety denylist: `wiki/Rules.md`, `wiki/_templates/**`, `wiki/MODULES/**`.
+
+### Fixed
+- **`!`-injection `$N` expansion bug.** Claude Code's skill `!`-injection layer expands `$N` references in awk scripts to empty strings before the shell sees them, breaking field access. All cluster-detection bash blocks in `/wiki-modules` now use `cut`/`sed` + a `while read` loop instead of `awk`. An inline implementation note in the skill body warns future edits not to re-introduce awk; the underlying bug is documented at `wiki/RESEARCH/skill-bash-injection-dollar-n-expansion.md`.
+
+### Migration
+- **No manual migration required.** Existing `wiki/MODULES/` notes from previous versions remain valid. The next `/wiki-modules` run audits each existing module against current cluster signals and re-authors qualifying clusters from scratch (failed-gate clusters surface as `STALE-MODULE` warnings — files are NOT auto-deleted).
+- **If you previously relied on `/wiki-digest` to auto-create module notes via the trigger-7 pre-evaluation:** that path is gone. Run `/wiki-modules` manually to refresh the orientation layer.
+
 ## [1.2.0] — 2026-05-06
 
 ### Added

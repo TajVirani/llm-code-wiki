@@ -1,17 +1,23 @@
 ---
 name: wiki-modules
-description: Manual scan of the wiki to (1) propose MODULES notes for clusters that lack one, and (2) audit existing MODULES notes against the current wiki state. Read-only — outputs a plan, never writes. Use when refreshing the orientation layer or before a major refactor.
-allowed-tools: Read, Glob, Grep, Bash
+description: Sole writer to wiki/MODULES/. Detects deep-abstraction clusters via three signals (filename prefix, single-dominant-tag, external fan-in) and dispatches one module-author subagent per qualifying cluster — in parallel — to author or re-author each module note. Every run re-authors every existing module from current cluster state. Use when refreshing the orientation layer or after material wiki growth.
+allowed-tools: Read, Glob, Grep, Bash, Task, Write, Edit
 ---
 
-# Wiki modules — synth + audit
+# Wiki modules — detect + author
 
-The user invokes `/wiki-modules` to refresh their understanding of the wiki's orientation layer (`wiki/MODULES/`) without committing to writes. This skill emits two sections in one run:
+The user invokes `/wiki-modules` to refresh the wiki's orientation layer (`wiki/MODULES/`). This skill is the **sole writer** to `wiki/MODULES/` (per ADR 0001) — the wiki-curator never writes MODULES notes. Every run is idempotent over current cluster state: every existing module is re-authored from scratch, and any new cluster passing the three signals gets a freshly authored module note.
 
-1. **Synthesize** — proposed MODULES notes for clusters that lack one. Each proposal lists candidate children with deterministic cluster signals. The user decides whether to draft any.
-2. **Audit** — existing MODULES notes checked against the current wiki state. Surfaces broken links, deprecated children, unlinked candidates, and scope drift.
+MODULES notes are auto-generated artifacts. Manual edits do not survive a re-author. To improve a module's content, edit its children — the next `/wiki-modules` run synthesizes from them.
 
-Read-only by contract. The skill never writes to `wiki/`. Dispatching changes is the user's job — drop drafts into `wiki/inbox/<slug>.md` for the next `/wiki-digest`, write `@ MODULES::<slug>` handles into `wiki/inbox/_session.md`, or edit module notes manually.
+## What this skill does
+
+1. **Detect clusters** in the current wiki using three deterministic signals (no embeddings, no semantic similarity — anti-feature A10).
+2. **Dispatch a `module-author` subagent in parallel per qualifying cluster**, one Task call per cluster, all in a single message. Each subagent reads its cluster's children, applies pre-author and post-author depth gates, and writes `wiki/MODULES/<slug>.md` plus the matching `### Modules` row in `wiki/topic-index.md`.
+3. **Audit** existing MODULES notes against current cluster state — flag stale modules whose clusters no longer pass the three signals, broken child links, deprecated children.
+4. **Emit a summary** consolidating each subagent's pass/skip outcome plus the audit findings.
+
+The author phase writes; the audit phase is informational. The skill itself does not write to `wiki/MODULES/` directly — every write goes through a `module-author` subagent so the gates and contract are enforced uniformly.
 
 ## Inputs
 
@@ -24,18 +30,15 @@ Read-only by contract. The skill never writes to `wiki/`. Dispatching changes is
 - Topic-index for tag/topic context:
   !`cat wiki/topic-index.md 2>/dev/null`
 
-- Domain-tag dominance set (top-10 tag frequency across topic-index — used to filter cluster signals from noise):
-  !`grep -oE '#[a-z][a-z0-9-]*' wiki/topic-index.md 2>/dev/null | sort | uniq -c | sort -rn | head -n 10 | sed -E 's/^[[:space:]]+[0-9]+[[:space:]]+//'`
+## Cluster detection (three deterministic signals)
 
-## Cluster detection (deterministic, no embeddings)
+A cluster qualifies for module authoring iff ALL THREE signals pass. The signals are designed to identify **deep abstractions with narrow interfaces and rich implementations** (Ousterhout) — not just notes that share a name root.
 
-Three signals — all bash-evaluable, no semantic similarity (anti-feature A10).
+(Implementation note: the bash blocks below deliberately avoid `awk` — Claude Code's `!`-injection layer expands `$N` references in awk scripts to empty strings before the shell sees them, breaking field access. See `wiki/RESEARCH/skill-bash-injection-dollar-n-expansion.md`. All per-line slicing here uses `cut`/`sed`/`grep` + a `while read` loop instead.)
 
-(Implementation note: these blocks deliberately avoid `awk` — Claude Code's `!`-injection layer expands `$N` references in awk scripts to empty strings before the shell sees them, breaking field access (see `wiki/RESEARCH/skill-bash-injection-dollar-n-expansion.md`). All per-line slicing here uses `cut`/`sed`/`grep` + a `while read` loop instead.)
+### Signal 1 — Filename prefix (bootstrap)
 
-### Signal 1 — Filename prefix
-
-Group detail-note basenames by their first kebab segment. A prefix with ≥3 notes is a candidate cluster.
+Group detail-note basenames by their first kebab segment. A prefix with ≥3 notes is a candidate cluster. This signal generates the candidate set; it does not, by itself, indicate a real module.
 
 !`for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt prefix; do if [ "$cnt" -ge 3 ]; then echo "$cnt $prefix"; fi; done`
 
@@ -49,124 +52,157 @@ For each `prefix` reported above, list its members (the candidate children pool)
   fi
 done`
 
-### Signal 2 — Tag overlap (cluster cohesion)
+### Signal 2 — Single dominant tag (cluster cohesion)
 
-For each prefix-cluster, compute the tag mode and flag any member that shares fewer than 2 tags with the mode (prefix-misfit):
+For each prefix-cluster, compute the set of tags shared across all members. The cluster passes Signal 2 iff there exists **at least one tag that every member carries**. This is the "single dominant tag" rule from ADR 0001 — it replaces the prior top-2 mode test.
 
-For each prefix-cluster identified by Signal 1, read the `**Tags**:` line of each member, count tag frequencies, and identify the mode (top 2 tags). Members whose own tag list shares 0 or 1 tags with the mode are reported as misfits — the cluster prefix may be misleading and a MODULES proposal should be made cautiously.
+The intent: a deep abstraction has *one* unifying concept. Members may diverge into specialized topics past that shared concept (one tagged `#auth #oauth`, another `#auth #session`, another `#auth #cookie`) — they all share `#auth`, so they cohere as a module. The prior top-2 test rejected such clusters because the second-most-frequent tag wasn't shared by all members; the new rule admits them because the single-dominant-tag intersection is non-empty.
 
-You (the assistant running this skill) compute this from the file contents using Read/Grep — bash alone can't reliably tally cross-file tag intersections. For each cluster in Signal 1's output:
+You (the assistant running this skill) compute this via Read/Grep — bash alone cannot reliably tally cross-file tag intersections. For each cluster from Signal 1:
 
 1. For each member: `grep -m1 '^\*\*Tags\*\*:' <file>` → extract the `#tag1 #tag2 …` list.
-2. Tally tag frequency across the cluster; pick the top-2 most frequent tags as the cluster mode.
-3. For each member: count overlap with the mode. <2 overlap → flag as misfit.
+2. Compute the set intersection across all members' tag lists.
+3. If the intersection is non-empty: Signal 2 passes. Record the dominant tag(s) — every tag in the intersection. The cluster's "dominant tag" used downstream is the first one in the intersection (deterministic order).
+4. If the intersection is empty: Signal 2 fails. The cluster does not qualify; do not dispatch a module-author for it.
 
-Report the cluster mode + misfit list per prefix.
+Report per cluster: `S2: PASS (dominant tags: #x #y)` or `S2: FAIL (no tag is shared by all N members)`.
 
-### Signal 3 — Link graph density
+### Signal 3 — External fan-in concentration (information hiding)
 
-For each prefix-cluster, count `[[wiki-link]]` edges between cluster members:
+For each prefix-cluster, count the number of **notes outside the cluster** that link to **≥2 distinct cluster members** via piped wiki-links. The cluster passes Signal 3 iff ≥1 external note fans into ≥2 distinct cluster members.
 
-!`for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt prefix; do
-  if [ "$cnt" -ge 3 ]; then
-    total=0
-    for ff in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null); do
-      count=$(grep -oE "\[\[${prefix}-[^]|]*" "$ff" 2>/dev/null | wc -l)
-      total=$((total + count))
+The intent: a module is known to the rest of the system. If nothing outside the cluster references it as a unit (zero external notes link to two or more of its members), the cluster is internally cohesive but invisible — it has no external interface, and a module note synthesizing it would have no audience. The prior intra-cluster-link test (Signal 3 in the legacy form) measured cohesion *inside* the cluster, which rejected clusters whose internal links were sparse but which were heavily referenced from outside.
+
+Compute via Bash — grep for piped wiki-links targeting cluster member basenames, exclude links sourced from inside the cluster itself:
+
+!`for prefix in $(for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt p; do [ "$cnt" -ge 3 ] && echo "$p"; done); do
+  members=$(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null)
+  member_basenames=$(echo "$members" | xargs -n1 basename 2>/dev/null | sed 's/\.md$//')
+  external_with_2plus=0
+  for ext in $(find wiki -type f -name '*.md' ! -path 'wiki/inbox/*' ! -path 'wiki/_templates/*' ! -path 'wiki/MODULES/*' 2>/dev/null); do
+    is_member=$(echo "$members" | grep -Fx "$ext")
+    if [ -n "$is_member" ]; then continue; fi
+    distinct_targets=0
+    for m in $member_basenames; do
+      hit=$(grep -cE "\[\[${m}(\||\])" "$ext" 2>/dev/null)
+      if [ "$hit" -gt 0 ]; then distinct_targets=$((distinct_targets + 1)); fi
     done
-    echo "prefix=$prefix intra-cluster-link-count=$total"
-  fi
+    if [ "$distinct_targets" -ge 2 ]; then external_with_2plus=$((external_with_2plus + 1)); fi
+  done
+  echo "prefix=$prefix external-fan-in-with-2-plus-distinct-targets=$external_with_2plus"
 done`
 
-High intra-cluster edge density confirms a real cluster. Low density (0–1 edges across ≥3 notes) flags a misleading prefix — the notes happen to share a name root but don't actually reference each other. Skip the proposal in that case.
+For each cluster: `S3: PASS (N external notes link to ≥2 cluster members)` if the count is ≥1; `S3: FAIL (no external note fans into ≥2 cluster members)` otherwise.
 
-## Synthesize section — for each clean cluster lacking a MODULES note
+## Dispatch — module-author subagents in parallel
 
-For each prefix-cluster passing Signals 1 + 2 + 3 (≥3 members, ≤1 misfit, ≥2 intra-cluster links) AND no existing `wiki/MODULES/<prefix>.md`, emit:
+After computing S1+S2+S3 for every prefix-cluster, build the list of qualifying clusters: those passing all three signals.
+
+For each qualifying cluster, prepare a dispatch payload:
 
 ```
-## Proposed Module: <cluster-name>
-
-Candidate children (N notes, M intra-cluster links, dominant tags: #x #y):
-  - ARCHITECTURE/<file1>.md
-  - ARCHITECTURE/<file2>.md
-  - FUNCTIONS/<file3>.md
+slug: <prefix>            # bare kebab single-concept slug; if the prefix is generic
+                          # (auth, db, api), pick a more specific bare slug from the
+                          # children's collective domain — surface the rename in the
+                          # summary so the user can adjust on the next run
+candidate_children:
+  - <relative path from wiki/, e.g. ARCHITECTURE/scheduler-overview.md>
   - …
-
-Misfits (do NOT include as children without review):
-  - RESEARCH/<file4>.md (tag overlap: 1 of 2 — shares #x but not #y)
-
-Suggested next step: draft a MODULES note covering this cluster's purpose, boundary,
-triggers, storage, behavior, rules, children. Drop the draft into
-wiki/inbox/<slug>.md and run /wiki-digest, or write a `@ MODULES::<slug>` handle entry.
+existing_module: <wiki/MODULES/<slug>.md if present, else "none">
+dominant_tags: <the Signal 2 intersection — typically one tag, possibly more>
 ```
 
-A cluster name is the prefix slug itself unless the prefix is generic (`auth`, `db`, `api`) — in which case suggest a more specific bare-slug name in the proposal heading.
+**Dispatch in parallel.** Send ONE message containing one `Task` tool call per qualifying cluster — all calls in the same message — using the `module-author` subagent. Each subagent receives its single cluster payload as its prompt and runs independently. Parallel dispatch is required: the subagents do not share state and write to disjoint paths (each writes its own `wiki/MODULES/<slug>.md` and updates a single bullet in `wiki/topic-index.md`; serial concurrency on `topic-index.md` is acceptable because each agent reads-then-writes the file once).
 
-## Audit section — for each existing wiki/MODULES/<slug>.md
+Do NOT dispatch more than one subagent per cluster. Do NOT dispatch a subagent for a cluster that failed any of S1/S2/S3.
 
-For each existing module note, run four checks:
+After all subagents complete, collect their outputs (each emits a structured `## Module authored: <slug>` block on success or `## Pre-author gate failed: <slug>` / `## Post-author gate failed: <slug>` / `## Slug collision: <slug>` on rejection).
 
-### Check 1 — Linked children verified
+## Audit — existing modules vs current cluster state
 
-For every `[[basename|…]]` reference inside the module's `### Children` section: confirm `wiki/**/<basename>.md` exists. Tally found vs broken.
+Independent of the dispatch phase. Run the audit on every existing `wiki/MODULES/<slug>.md` file:
 
-### Check 2 — Deprecated children
+### Check 1 — Cluster still qualifies
 
-For every linked child: read the child's `**Tags**:` line. If `#deprecated` is present, flag it.
+For the module's slug, find the matching prefix-cluster in the Signal 1/2/3 output above. If the cluster:
+- No longer exists (S1 fails: <3 members with this prefix), OR
+- Fails S2 (no shared dominant tag), OR
+- Fails S3 (no external fan-in)
 
-### Check 3 — Unlinked cluster candidates
+Flag the module as `STALE-MODULE` — the cluster that originally justified it has shifted out from under the note. The module file is NOT auto-deleted. Surface the slug, the failing signal(s), and the recommendation: "Consider deleting `wiki/MODULES/<slug>.md` manually, or restructure the children so the cluster qualifies again."
 
-For the module's slug, identify notes whose filename starts with `<slug>-` OR whose `**Tags**:` includes `#<slug>`. Any such note NOT linked from the module's Children section is reported as an unlinked candidate. The module may have grown coverage gaps as detail notes were added.
+### Check 2 — Linked children verified
 
-### Check 4 — Scope drift
+Read the module's `### Children` section. For every `[[basename|…]]` reference, confirm `wiki/**/<basename>.md` exists. Tally found vs broken. Broken-link findings are advisory only — the next dispatch will overwrite the file with a fresh Children list, so this check mostly surfaces drift between runs.
 
-Compare the module's own `**Tags**:` line to the dominant tags of its linked children. If the children's collective top-2 tags are not a subset of the module's tags, flag scope drift.
+### Check 3 — Deprecated children
 
-Emit per module:
+For every linked child: read its `**Tags**:` line. If `#deprecated` is present, flag it. Same advisory framing as Check 2.
+
+### Check 4 — Unlinked candidates
+
+For the module's slug, identify notes whose filename starts with `<slug>-` OR whose `**Tags**:` includes `#<slug>`. Any such note NOT linked from the module's Children section is reported as an unlinked candidate. Like Check 2/3, the next dispatch fixes this — but surfacing it during the audit phase tells the user whether the cluster is still cohesive enough to warrant a re-author.
+
+Emit per existing module:
 
 ```
 ## Audit: MODULES/<slug>.md
 
-✓ <N> linked children verified to exist
-⚠ <M> children deprecated (tagged #deprecated): <list>
-⚠ <K> linked children no longer exist (broken wiki-links): <list>
-⚠ <P> notes match the cluster signal but are NOT linked from this module: <list>
-⚠ scope drift: cluster's dominant tags are now <#a #b> but module's tags are <#x #y>
+- Cluster signals: S1=<PASS/FAIL>, S2=<PASS/FAIL>, S3=<PASS/FAIL>
+  <STALE-MODULE warning if any signal fails>
+- ✓ <N> linked children verified to exist
+- ⚠ <M> children deprecated: <list>
+- ⚠ <K> linked children no longer exist: <list>
+- ⚠ <P> notes match the cluster signal but are NOT linked: <list>
 ```
 
-Suppress checks that pass cleanly (don't emit a `✓` for empty findings — only the Check 1 success line is universal).
+Suppress checks that pass cleanly. Always show the `Cluster signals:` line so the user can see at a glance whether each existing module's justification still holds.
 
 ## Output format
 
-Emit both sections in one run, in this order:
+Emit the full run summary in this order:
 
 ```
-# /wiki-modules — synth + audit
+# /wiki-modules — detect + author + audit
 
-(Generated <ISO-8601 timestamp>; read-only.)
+(Generated <ISO-8601 timestamp>.)
 
-## Synthesize
-<one block per proposed cluster, or "No proposals — all detected clusters already have MODULES notes.">
+## Cluster detection
+
+For each prefix from Signal 1, report S1/S2/S3 pass/fail with the deterministic counts.
+
+## Authoring (dispatched module-author subagents)
+
+For each qualifying cluster, the subagent's structured output:
+- ## Module authored: <slug> (success block from module-author Step 7)
+- ## Pre-author gate failed: <slug> (gate rejection)
+- ## Post-author gate failed: <slug> (gate rejection)
+- ## Slug collision: <slug> (collision rejection)
 
 ## Audit
-<one block per existing module, or "No existing modules to audit.">
+
+For each existing wiki/MODULES/<slug>.md, the audit block above.
 
 ## Summary
-- Proposals: <N>
+- Clusters detected (S1 pass): <N>
+- Clusters qualifying (S1+S2+S3 pass): <K>
+- Modules authored (subagent success): <A>
+- Modules skipped by pre-author gate: <P1>
+- Modules skipped by post-author gate: <P2>
+- Modules skipped by slug collision: <P3>
 - Existing modules audited: <M>
-- Broken links found: <K>
-- Deprecated children: <P>
-- Unlinked candidates: <Q>
-- Scope-drift flags: <R>
+- Stale modules (cluster signals no longer pass): <S>
+- Broken child links found: <B>
+- Deprecated children: <D>
+- Unlinked candidates: <U>
 ```
-
-No interactive prompts. Output is purely informational — the user dispatches changes through `/wiki-digest` or manual edits.
 
 ## Things this skill does NOT do
 
-- Does NOT write to `wiki/` (no Write/Edit in allowed-tools — Read/Glob/Grep/Bash only).
-- Does NOT use embeddings or semantic similarity (anti-feature A10). Cluster detection is filename-prefix + tag-overlap + link-graph only.
-- Does NOT propose MODULES notes for prefixes with <3 detail notes, ≥2 misfits, or 0–1 intra-cluster links — those are likely misleading prefixes, not real clusters.
+- Does NOT detect clusters via embeddings or semantic similarity (anti-feature A10). Detection is filename-prefix + single-dominant-tag intersection + external-fan-in count only.
+- Does NOT author module notes itself. Every authoring write goes through a `module-author` subagent so the pre-author and post-author gates run uniformly. The skill body coordinates dispatch; the subagents own the writes.
 - Does NOT modify `wiki/Rules.md` or anything under `wiki/_templates/`.
-- Does NOT auto-fork the curator. The curator runs only on `/wiki-digest`.
+- Does NOT delete stale module files automatically. A `STALE-MODULE` warning surfaces the slug and the failing signal; the user decides whether to delete or restructure.
+- Does NOT touch `wiki/inbox/_session.md` or any research-doc source — those flow through `/wiki-digest`.
+- Does NOT update the `### Notes` section of `wiki/topic-index.md` — that section is owned by the wiki-curator's Step 9 during `/wiki-digest`. The module-author subagents update only the `### Modules` section.
+- Does NOT re-validate the three signals inside the module-author subagents. The dispatch is the authorization; the subagent trusts its caller.

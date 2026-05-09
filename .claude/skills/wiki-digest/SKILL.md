@@ -89,67 +89,15 @@ Inputs:
 - Wiki rules (authoritative — re-read fresh per Pitfall 12, NOT a stale skill-body mirror):
   !`cat wiki/Rules.md`
 
-### 3a. Trigger 7 (module-cluster) signal pre-evaluation
+(Trigger 7 signal pre-evaluation removed per ADR 0001. The curator no longer routes entries to `wiki/MODULES/`; `/wiki-modules` owns module-cluster detection and authoring. `@ MODULES::` session-inbox handles, if present, surface as `MODULES-VIA-DIGEST-DEPRECATED` plan rows in the curator's output — no signal computation needed.)
 
-The curator's Step 2c trigger 7 (Rules.md §12 row 7) requires four deterministic signals (S1+S2+S3+S4) computed against each entry/concept body. Compute them here in bash so the curator receives labeled values rather than judging "looks like a module" at LLM time.
-
-First, compute the dominant codebase domains used by S3. Domains = the top-10 tags by frequency across `wiki/topic-index.md` bullets (existing index data). One-shot, run once per digest. (Note: this block deliberately avoids `awk` — Claude Code's `!`-injection layer expands `$N` references in awk scripts, breaking field access, so all per-line slicing here uses `sed`/`grep`/`cut` instead.)
-
-!`grep -oE '#[a-z][a-z0-9-]*' wiki/topic-index.md 2>/dev/null | sort | uniq -c | sort -rn | head -n 10 | sed -E 's/^[[:space:]]*[0-9]+[[:space:]]+//' | paste -sd ',' -; echo; echo "(top-10 dominant tags from topic-index.md — used as S3 domain set; if blank, S3 falls back to a count of distinct #tags in the body)"`
-
-Then for the **session inbox**, emit per-entry signals. Each entry is a `^@ ` handle line followed by a body paragraph until the next `^@ ` line or EOF. We split the inbox into per-entry chunks via `csplit` and compute signals on each chunk with the same bash/grep approach used by the research-doc loop below — no awk, no `$N` references. Print one labeled block per entry slug:
-
-!`P="${ARGUMENTS:-wiki/inbox/_session.md}"
-[ -f "$P" ] || exit 0
-TMP=$(mktemp -d 2>/dev/null) || exit 0
-csplit -s -z -f "$TMP/entry-" -b "%03d.txt" "$P" '/^@ /' '{*}' 2>/dev/null
-for f in "$TMP"/entry-*.txt; do
-  [ -f "$f" ] || continue
-  head -1 "$f" | grep -qE '^@ [A-Z]+::' || continue
-  slug=$(head -1 "$f" | sed -E 's/^@ [A-Z]+:://; s/[[:space:]].*$//')
-  s1=$(grep -oE '\[\[[^]|]+' "$f" 2>/dev/null | wc -l)
-  trig=$(grep -ciE '\b(trigger|entry|input|request|user picks|submits|cron|scheduled|queue|event)\b' "$f" 2>/dev/null); trig=$([ "$trig" -gt 0 ] && echo 1 || echo 0)
-  store=$(grep -ciE '\b(saved to|stored in|persists|database|db|table|queue|state)\b' "$f" 2>/dev/null); store=$([ "$store" -gt 0 ] && echo 1 || echo 0)
-  ex=$(grep -ciE '\b(runs|executes|processes|reconciles|handler|worker|on a timer|loops)\b' "$f" 2>/dev/null); ex=$([ "$ex" -gt 0 ] && echo 1 || echo 0)
-  out=$(grep -ciE '\b(produces|emits|writes|notifies|returns|responds|completes)\b' "$f" 2>/dev/null); out=$([ "$out" -gt 0 ] && echo 1 || echo 0)
-  s2sum=$((trig + store + ex + out))
-  s3=$(grep -oE '#[a-z][a-z0-9-]*' "$f" 2>/dev/null | sort -u | wc -l)
-  s4=$(wc -w < "$f")
-  echo "### Trigger 7 signals for entry $slug: S1=$s1, S2=[trig=$trig, store=$store, exec=$ex, out=$out | sum=$s2sum/4], S3=$s3, S4=$s4"
-done
-rm -rf "$TMP"`
-
-Then for **each research doc**, emit one labeled block per doc (the doc body is the whole file):
-
-!`for f in $(find wiki/inbox -maxdepth 1 -type f -name '*.md' ! -name '_*' 2>/dev/null | sort); do
-  body=$(cat "$f")
-  s1=$(echo "$body" | grep -oE '\[\[[^\]|]+' | wc -l)
-  trig=$(echo "$body" | grep -ciE '\b(trigger|entry|input|request|user picks|submits|cron|scheduled|queue|event)\b'); trig=$([ "$trig" -gt 0 ] && echo 1 || echo 0)
-  store=$(echo "$body" | grep -ciE '\b(saved to|stored in|persists|database|db|table|queue|state)\b'); store=$([ "$store" -gt 0 ] && echo 1 || echo 0)
-  ex=$(echo "$body" | grep -ciE '\b(runs|executes|processes|reconciles|handler|worker|on a timer|loops)\b'); ex=$([ "$ex" -gt 0 ] && echo 1 || echo 0)
-  out=$(echo "$body" | grep -ciE '\b(produces|emits|writes|notifies|returns|responds|completes)\b'); out=$([ "$out" -gt 0 ] && echo 1 || echo 0)
-  s2sum=$((trig + store + ex + out))
-  s3=$(echo "$body" | grep -oE '#[a-z][a-z0-9-]*' | sort -u | wc -l)
-  s4=$(echo "$body" | wc -w)
-  echo "### Trigger 7 signals for research-doc $f: S1=$s1, S2=[trig=$trig, store=$store, exec=$ex, out=$out | sum=$s2sum/4], S3=$s3, S4=$s4"
-done`
-
-The curator reads these labeled blocks and applies the all-four-signals rule deterministically — no LLM judgment about whether a body "looks like" a module. Trigger 7 fires when **all four** of the following are true per entry:
-
-- S1 ≥ 3
-- S2 sum ≥ 3 (≥3 of 4 keyword categories present)
-- S3 ≥ 2 distinct dominant domains
-- S4 ∈ [150, 1000]
-
-If trigger 7 fires on a non-MODULES handle, the curator emits an OVERRIDE row routing to MODULES per Step 2c discipline.
-
-If `disableSkillShellExecution` is set on this Claude Code instance, the bash injections above produce empty strings. In that case, the curator must Read each input itself using its Read/Glob tools — including globbing `wiki/inbox/*.md` (excluding `_session.md` and underscore-prefixed files) to recover the research-doc list, AND computing the trigger 7 signals itself with Read/Grep on each entry/concept body as a degraded path. The curator's prompt covers this fallback (W7 extension).
+If `disableSkillShellExecution` is set on this Claude Code instance, the bash injections above produce empty strings. In that case, the curator must Read each input itself using its Read/Glob tools — including globbing `wiki/inbox/*.md` (excluding `_session.md` and underscore-prefixed files) to recover the research-doc list as a degraded path. The curator's prompt covers this fallback (W7 extension).
 
 ## Step 4 — Curator runs (this is where the fork happens)
 
 Per the frontmatter `context: fork` + `agent: wiki-curator`, this skill body is delivered to a forked wiki-curator subagent in a fresh context. The curator follows its protocol (defined in `.claude/agents/wiki-curator.md`), producing:
 
-1. A markdown plan listing every CREATE / EDIT / SPLIT / OVERRIDE / RULES-PROPOSAL / ALERT / CONFLICT-ON-RESEARCH row, grouped by source (session inbox vs each research-doc filename).
+1. A markdown plan listing every CREATE / EDIT / SPLIT / OVERRIDE / RULES-PROPOSAL / ALERT / CONFLICT-ON-RESEARCH / MODULES-VIA-DIGEST-DEPRECATED row, grouped by source (session inbox vs each research-doc filename).
 2. A validation result against Rules.md.
 3. Interactive resolution for any CONFLICT-ON-RESEARCH rows (Step 7a in the curator) — for each research-doc concept that collides with an existing `wiki/RESEARCH/` note, the curator surfaces both the existing content and the proposed content and waits for the user's instructions before any write to `wiki/RESEARCH/`.
 4. The applied changes (writes / edits to `wiki/<CATEGORY>/<slug>.md`).
@@ -164,7 +112,8 @@ Restated reminders to the curator (these are also in its system prompt — liste
 - **DIGS-09 + D-04 (existing-note conflict):** Same-concept detection by filename + title + tag overlap. NEVER use embeddings (anti-feature A10). 2+ matching signals → EDIT existing note (bump Last Updated). 0–1 → CREATE new.
 - **D-19 RESEARCH/ write-protection branches by source:** Session-inbox handle-line entries that hit `wiki/RESEARCH/` still emit ALERT rows (read-only path preserved). Research-doc concepts that hit `wiki/RESEARCH/` emit CONFLICT-ON-RESEARCH rows and trigger Step 7a interactive resolution — any write to `wiki/RESEARCH/` is authorized by the user's typed instructions, never by automatic plan approval.
 - **DIGS-13 + D-16:** Curator NEVER writes to `wiki/Rules.md`. Rule-change suggestions surface as RULES-PROPOSAL rows for the user to apply manually.
-- **Path safety:** Every write target must be under `wiki/`. Denylist: `wiki/Rules.md`, `wiki/_templates/**`. Reject any plan row violating this.
+- **Path safety:** Every write target must be under `wiki/`. Denylist: `wiki/Rules.md`, `wiki/_templates/**`, `wiki/MODULES/**` (the orientation layer is owned by `/wiki-modules` per ADR 0001). Reject any plan row violating this.
+- **MODULES handle deprecation (ADR 0001):** `@ MODULES::<slug>` session-inbox handles surface as `MODULES-VIA-DIGEST-DEPRECATED` plan rows. The curator never writes to `wiki/MODULES/`. Direct the user to `/wiki-modules` for orientation-layer authoring.
 
 ## Step 5 — Post-write link audit (DIGS-11, D-08)
 

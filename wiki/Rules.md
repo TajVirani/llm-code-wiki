@@ -2,7 +2,7 @@
 **Summary**: Rules governing how notes are created, split, filed, and linked inside the project wiki.
 **Tags**: #wiki #rules #conventions
 **Created**: 2026-04-10T00:00:00+00:00
-**Last Updated**: 2026-05-06T00:00:00+00:00
+**Last Updated**: 2026-05-09T00:00:00+00:00
 
 ---
 
@@ -26,7 +26,7 @@ These rules govern every interaction with this wiki. When in doubt, follow them 
 | `RESEARCH/`     | Domain math, formulas, algorithms, derivations, design notes that inform implementation but aren't implementation itself. |
 | `SELF/`         | AI/agent-facing context: short memory snapshots, session summaries, important notes for future Claude sessions.         |
 | `DIAGRAMS/`     | Mermaid / ASCII / PlantUML diagrams of flows, sequences, schemas, dependency graphs.                                    |
-| `MODULES/`      | Feature-cluster summaries (~6–10 per project). Orienting overviews of capability areas spanning multiple subsystems. Each links down to ARCHITECTURE/FUNCTIONS/RESEARCH/DIAGRAMS detail notes. Gated by the deletion test — if children alone orient a newcomer, the MODULES note is shallow and should not exist. |
+| `MODULES/`      | Feature-cluster summaries (~6–10 per project). Orienting overviews of capability areas spanning multiple subsystems. Each links down to ARCHITECTURE/FUNCTIONS/RESEARCH/DIAGRAMS detail notes. **Owned by `/wiki-modules` (ADR 0001).** Auto-generated artifacts — manual edits do not survive a re-author. The curator never writes here. To improve a module's content, edit its children — the next `/wiki-modules` run synthesizes from them. |
 
 If a note doesn't obviously belong in one of these, propose a new top-level folder rather than guessing — and update this Rules file in the same change.
 
@@ -72,7 +72,7 @@ Rules for filling it in:
 - The filename should match the note's H1/title concept closely enough that it is greppable.
 - When splitting one source file into many, prefix splits with the parent topic: `auth-base-flow.md`, `auth-token-refresh.md`, `auth-session-cookies.md`.
 
-MODULES slugs are bare single-concept kebab identifiers (`scheduling`, not `scheduler-overview`). Detail-note children in other categories carry kebab prefixes derived from the module slug or otherwise topical (e.g. `scheduler-jobs-pg-boss`). A MODULES slug must not exactly equal any existing basename under `wiki/{ARCHITECTURE,FUNCTIONS,RESEARCH,DIAGRAMS,SELF}/**/*.md` — surface the collision via a `SLUG-COLLISION` plan row instead of auto-routing.
+MODULES slugs are bare single-concept kebab identifiers (`scheduling`, not `scheduler-overview`). Detail-note children in other categories carry kebab prefixes derived from the module slug or otherwise topical (e.g. `scheduler-jobs-pg-boss`). A MODULES slug must not exactly equal any existing basename under `wiki/{ARCHITECTURE,FUNCTIONS,RESEARCH,DIAGRAMS,SELF}/**/*.md` — `/wiki-modules` (the sole writer to MODULES per ADR 0001) detects this collision and surfaces it as a structured rejection from the `module-author` subagent rather than authoring the colliding note.
 
 ### 6. Inbox processing workflow
 
@@ -168,23 +168,10 @@ A separate trigger applies to non-diagram notes:
 | # | Trigger | Template | Routing |
 |---|---|---|---|
 | 6 | **Recurring code pattern** — the same shape (≥3 occurrences in this repo) detected across files; the user surfaces it as a pattern in a research-doc; OR an inbox entry explicitly tags it `#pattern` | `_templates/pattern.md` | `ARCHITECTURE/<slug>.md`. |
-| 7 | **Module-cluster shape** — entry/concept body satisfies all four signals: **S1** ≥3 wiki-link or basename references to existing notes; **S2** ≥3 of 4 keyword categories present (trigger / storage / executor / outcome); **S3** referenced/own tags span ≥2 distinct dominant codebase domains (derived from `topic-index.md`); **S4** body word count is 150–1000. | `_templates/module.md` | `MODULES/<slug>.md`. |
 
 Trigger detection is the curator's responsibility (Step 2 of its protocol). Disagreement between handle category and trigger is resolved by treating the trigger as advisory: if the trigger matches but the handle disagrees, surface an OVERRIDE row per §6 step rules and the curator's Step 2a override discipline. New triggers are not invented on the fly — propose them via a `RULES-PROPOSAL` row and amend this section in the same change that adds the supporting template.
 
-When trigger 7 fires, the curator additionally runs a deletion-test gate (≥5 of 7 inner H2s present, with `Purpose` and `Boundary` mandatory plus ≥3 of {`Triggers`, `Storage`, `Behavior`, `Rules & Invariants`, `Children`}) before writing. The threshold lives in the curator prompt — tunable without amending this rule.
-
-### 13. MODULES same-concept detection
-
-When evaluating same-concept signals for an entry routed to MODULES, **filename match counts; title match counts; tag overlap does not count.** Tags are inherently shared between a module and its children, so tag overlap is structurally expected, not a duplicate signal.
-
-- 2 signals match → EDIT existing MODULES note (bump `Last Updated`).
-- 1 signal matches → EDIT.
-- 0 signals match → CREATE.
-
-The standard 2-of-3 rule (filename + title + tag overlap) continues to apply to ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS.
-
-Cross-category collision: if a MODULES slug exactly equals an existing basename under any other category (`wiki/{ARCHITECTURE,FUNCTIONS,RESEARCH,SELF,DIAGRAMS}/**/<slug>.md`), the curator emits a `SLUG-COLLISION` plan row (surface only, no auto-route). The user decides whether to rename the module slug or merge.
+(MODULES authoring is not a curator trigger per ADR 0001. `/wiki-modules` detects module-cluster shape via its three signals — filename prefix, single dominant tag, external fan-in — and dispatches the `module-author` subagent. The `_templates/module.md` template is consumed by `module-author`, not by the curator.)
 
 ## Related Notes
 

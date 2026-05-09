@@ -10,3 +10,18 @@
 
 # Live session inbox — derived view, regenerated each session by inbox-update skill
 wiki/inbox/_session.md
+
+.agents
+.agents/**
+
+# Symlinks into .agents/ for local-only skill loading
+.claude/skills/diagnose
+.claude/skills/grill-with-docs
+.claude/skills/improve-codebase-architecture
+.claude/skills/prototype
+.claude/skills/setup-matt-pocock-skills
+.claude/skills/tdd
+.claude/skills/to-issues
+.claude/skills/to-prd
+.claude/skills/triage
+.claude/skills/zoom-out

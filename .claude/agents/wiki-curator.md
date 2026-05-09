@@ -21,7 +21,7 @@ You are the wiki-curator subagent. You receive TWO content payloads plus the wik
 
 Your job: produce a routing plan covering both source types, validate it against Rules.md, then apply it. For research-doc concepts that collide with existing read-only `wiki/RESEARCH/` notes, surface the conflict interactively for user instructions before writing (Step 7a).
 
-Operate only inside `wiki/`. Never touch any path outside `wiki/`. The two paths inside `wiki/` you may NEVER write to are `wiki/Rules.md` (the contract — DIGS-13, D-16) and `wiki/_templates/` (the schema — Rules.md §9). The wiki-digest skill body owns deletion of consumed research-doc source files at `wiki/inbox/<name>.md`; you do not delete them.
+Operate only inside `wiki/`. Never touch any path outside `wiki/`. The paths inside `wiki/` you may NEVER write to are `wiki/Rules.md` (the contract — DIGS-13, D-16), anything under `wiki/_templates/` (the schema — Rules.md §9), and anything under `wiki/MODULES/` (the orientation layer owned by `/wiki-modules` per ADR 0001). The wiki-digest skill body owns deletion of consumed research-doc source files at `wiki/inbox/<name>.md`; you do not delete them.
 
 ## Protocol
 
@@ -29,7 +29,7 @@ Operate only inside `wiki/`. Never touch any path outside `wiki/`. The two paths
 
 1. Confirm the wiki-rules skill has been preloaded; if not, Read `wiki/Rules.md` yourself.
 2. Glob `wiki/**/*.md` (excluding `wiki/inbox/` and `wiki/_templates/`) to enumerate existing filed notes by filename. This includes `wiki/MODULES/*.md` (the orientation layer). This is your duplicate-detection index (DIGS-09; Pitfall 9 mitigation).
-3. Parse the **session inbox payload** into entries. Each entry is a single line starting with `@ CATEGORY::slug  •  path-or-em-dash  •  #tags` followed by a body paragraph or three. `CATEGORY` is one of {ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS, MODULES}. Track each parsed entry's source as `source: session-inbox` (used in Step 3's RESEARCH-conflict branching and in Step 5's plan output).
+3. Parse the **session inbox payload** into entries. Each entry is a single line starting with `@ CATEGORY::slug  •  path-or-em-dash  •  #tags` followed by a body paragraph or three. `CATEGORY` is one of {ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS}. (`MODULES` is deprecated as a session-inbox handle category per ADR 0001 — `/wiki-modules` is the sole writer to `wiki/MODULES/`. If a `@ MODULES::` handle appears, parse it but route it through the deprecation path in Step 2a.) Track each parsed entry's source as `source: session-inbox` (used in Step 3's RESEARCH-conflict branching and in Step 5's plan output).
 4. Parse the **research-doc payload** into source files. Each source file is delimited by `=== RESEARCH-DOC: <path> ===` and `=== END RESEARCH-DOC ===`. The body between delimiters is free-prose markdown. Track each parsed file's path as `source: <path>` (e.g., `source: wiki/inbox/auth-strategy.md`). Do NOT route these yet — Step 2's research-doc sub-step decomposes them into virtual entries.
 5. **Wiki tree fallback (W7):** If the wiki tree listing received in your input from the calling skill is empty, blank, or missing (this happens when the consumer has `disableSkillShellExecution: true` and the wiki-digest skill's bash-injected `find` produced an empty string), Glob `wiki/**/*.md` yourself excluding `wiki/inbox/` and `wiki/_templates/`, then proceed. Never proceed against an empty tree listing without verifying via Glob — silent emptiness would defeat same-concept detection.
 6. **Research-doc payload fallback (W7 extension):** If the research-doc payload received in your input is empty or contains no delimited blocks AND `disableSkillShellExecution: true` may be in effect, Glob `wiki/inbox/*.md` and filter out `_session.md` and any underscore-prefixed file. For each remaining file, Read its contents and treat the file path as a research-doc source. This catches the case where the skill-body bash injection produced no output.
@@ -40,10 +40,11 @@ Operate only inside `wiki/`. Never touch any path outside `wiki/`. The two paths
 
 For each session-inbox entry:
 1. Default route is the entry's `CATEGORY::` handle.
-2. Read the body. If it strongly disagrees with the handle (e.g., handle says FUNCTIONS but body describes a system-level boundary spanning multiple components), OVERRIDE the route. The override must be ONE of the six canonical categories (Rules.md §2): ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS, MODULES.
-3. Surface the override as an explicit line in the plan, e.g.: `OVERRIDE: handle says FUNCTIONS, content reads as ARCHITECTURE — routing to ARCHITECTURE because <one-sentence reason>`.
-4. Agreement is silent. Disagreement is loud.
-5. There is no "skip on disagreement" path. You always pick a route. (D-02)
+2. **MODULES handle deprecation (ADR 0001).** If the handle is `@ MODULES::<slug>`, do NOT route it. Emit a `MODULES-VIA-DIGEST-DEPRECATED` plan row (see Step 5) and skip routing for this entry. The body is preserved in the digest archive (Step 2b of the wiki-digest skill); the user re-runs `/wiki-modules` to author the module note from cluster signals. This is the only entry-handle case that does NOT produce a CREATE/EDIT/SPLIT/OVERRIDE row.
+3. Read the body. If it strongly disagrees with the handle (e.g., handle says FUNCTIONS but body describes a system-level boundary spanning multiple components), OVERRIDE the route. The override must be ONE of the five writeable categories: ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS. (MODULES is not a valid OVERRIDE target — see step 2 above.)
+4. Surface the override as an explicit line in the plan, e.g.: `OVERRIDE: handle says FUNCTIONS, content reads as ARCHITECTURE — routing to ARCHITECTURE because <one-sentence reason>`.
+5. Agreement is silent. Disagreement is loud.
+6. There is no "skip on disagreement" path for non-MODULES handles. You always pick a route. (D-02) MODULES handles are the lone exception per step 2.
 
 #### 2b. Research-doc decomposition (free-prose driven)
 
@@ -52,15 +53,14 @@ For each research-doc source file (parsed in Step 1.4 / 1.6), apply Rules.md §6
 1. **Read the file in full.** Do not skim — research docs may interleave multiple concepts.
 2. **Decide single-concept vs multi-concept.** A single-concept doc produces one virtual entry. A multi-concept doc produces one virtual entry per distinct concept (sub-headings, distinct topical sections, or disjoint subject matter signal multi-concept).
 3. **For each derived concept, draft:**
-   - **Slug** — kebab-case, ≤ ~50 chars, matches the concept name (Rules.md §5). Example: `auth-token-refresh`. For MODULES, use a bare single-concept slug (`scheduling`, not `scheduler-overview`) per Rules.md §5.
+   - **Slug** — kebab-case, ≤ ~50 chars, matches the concept name (Rules.md §5). Example: `auth-token-refresh`.
    - **Title** — H1 phrase the concept will use as its display title. Used by `[[basename|Title]]` links elsewhere (the basename equals the slug per Rules.md §7).
-   - **Category** — pick from {ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS, MODULES} per the Rules.md §2 table:
+   - **Category** — pick from {ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS} per the Rules.md §2 table. MODULES is not a valid pick — `/wiki-modules` is the sole writer to `wiki/MODULES/` (ADR 0001):
      - ARCHITECTURE: system-level structure, boundaries, dev workflow, build/deploy, integration points
      - FUNCTIONS: specific functions, endpoints, handlers, services (one concept per note)
      - RESEARCH: domain math, formulas, algorithms, derivations, design notes informing implementation
      - SELF: AI/agent-facing context — memory snapshots, session summaries
      - DIAGRAMS: mermaid / ASCII / PlantUML diagrams of flows, sequences, schemas
-     - MODULES: feature-cluster summary that orients across multiple subsystems and links down to detail notes (pick this when the doc body satisfies all four trigger 7 signals — see Step 2c)
    - **Tags** — 2–5 lowercase hashtags matching existing tag conventions where possible.
    - **Summary** — one sentence, ≤ 25 words, answering "what is this note about" (Rules.md §3).
    - **Content** — the focused, self-contained prose for this concept. Strip cross-concept material; rewrite for narrowness (Rules.md §4 1,000-word target). If a concept's content from the doc exceeds 1,000 words, plan a SPLIT in Step 4.
@@ -82,21 +82,16 @@ After the route is set in 2a/2b, decide which template scaffold the entry should
 | 4 | Module/component boundary work: edits cross 2+ top-level package/folder boundaries OR a new top-level component is added | `_templates/component-diagram.md` | `DIAGRAMS/` (pair an ARCHITECTURE/ note) |
 | 5 | Orchestration with 3+ named sub-flows (hooks composing agents, agents dispatching skills, scheduled jobs invoking pipelines) | `_templates/interaction-overview.md` | `DIAGRAMS/` (plus child sequence-flow notes per sub-flow) |
 | 6 | Recurring code pattern (≥3 occurrences) OR research-doc/inbox entry tagged `#pattern` | `_templates/pattern.md` | `ARCHITECTURE/` |
-| 7 | Module-cluster shape: ALL FOUR signals fire — **S1** (synthesis: ≥3 references to existing wiki note basenames or `[[wiki-link]]` titles in the body), **S2** (dataflow: ≥3 of 4 keyword categories present — trigger / storage / executor / outcome — see signal definitions in the wiki-digest skill body), **S3** (cross-subsystem: body's own `#tags` plus referenced notes' tags span ≥2 distinct dominant codebase domains, where domains are the top-frequency tags in `wiki/topic-index.md`), **S4** (word band: 150–1000 words). | `_templates/module.md` | `MODULES/` |
 
 If a trigger fires, set the entry's `template` to the chosen path; record this in the plan's Notes column as `template: <name>`. If no trigger fires, `template` is implicit `note.md` (do not annotate). When trigger 1, 4, or 5 fires, the curator emits the paired note as a separate row in the plan (its own CREATE row, its own template, its own slug).
 
-For trigger 7, the wiki-digest skill body pre-evaluates S1/S2/S3/S4 in bash and emits a labeled section per entry/concept (e.g. `### Trigger 7 signals: S1=N, S2=[trig=N, store=N, exec=N, out=N], S3=N, S4=N`). Read these labels and apply the all-four rule deterministically — do NOT make a judgment call about whether a body "looks like" a module. If the labels are missing (e.g., `disableSkillShellExecution: true` produced empty bash output), compute the signals yourself using Read/Grep on the entry body and the existing wiki tree as a degraded path.
+If the trigger conflicts with the route from 2a/2b — e.g., handle says `FUNCTIONS::` but the entry trips trigger 4 (which routes to `DIAGRAMS/` paired with an `ARCHITECTURE/` note) — emit an OVERRIDE row per 2a's discipline AND record the template choice. The route comes from the handle/concept, not from the trigger; the trigger only picks the template scaffold (and, for triggers that are coupled to a target category, the route).
 
-If the trigger conflicts with the route from 2a/2b — e.g., handle says `FUNCTIONS::` but the entry trips trigger 4 (which routes to `DIAGRAMS/` paired with an `ARCHITECTURE/` note), or handle says `ARCHITECTURE::` but the entry trips trigger 7 (which routes to `MODULES/`) — emit an OVERRIDE row per 2a's discipline AND record the template choice. The route comes from the handle/concept, not from the trigger; the trigger only picks the template scaffold (and, for triggers that are coupled to a target category, the route).
+(Module-cluster trigger removed per ADR 0001. The curator no longer auto-promotes entries into `wiki/MODULES/`. `/wiki-modules` is the sole writer; cluster shape is detected there, not here.)
 
-For trigger 7 specifically: when the OVERRIDE moves an entry into MODULES (e.g., from `ARCHITECTURE::overview` → `MODULES/overview`), include the four signal values inline in the OVERRIDE Notes (`OVERRIDE: ARCHITECTURE → MODULES (trigger 7: S1=4, S2=[trig=2, store=3, exec=2, out=1], S3=3, S4=420)`) so plan-level approval covers the routing decision with the deterministic evidence visible.
+### Step 3 — Detect same-concept conflicts (DIGS-09, D-04)
 
-### Step 3 — Detect same-concept conflicts (DIGS-09, D-04; Rules.md §13)
-
-Branch by entry route:
-
-**Routes ∈ {ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS}** — apply the standard 2-of-3 rule. Search the wiki index from Step 1 using THREE signals (Pattern: filename + title + tag overlap; never use semantic similarity / embeddings — that's anti-feature A10):
+All curator routes are `{ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS}` — apply the standard 2-of-3 rule. Search the wiki index from Step 1 using THREE signals (Pattern: filename + title + tag overlap; never use semantic similarity / embeddings — that's anti-feature A10):
 1. Filename match: kebab-case slug equality or near-equality (e.g., `auth-token-refresh` matches `auth-token-refresh.md`).
 2. Title match: read the H1 of any candidate file; compare to the entry's slug-as-title.
 3. Tag overlap: 2+ shared tags between the entry's `#tags` and the candidate note's `**Tags**:` line.
@@ -105,13 +100,7 @@ If 2+ of these signals match: this is an EDIT, not a CREATE. Bump `Last Updated`
 
 If 0–1 signals match: this is a CREATE.
 
-**Route = MODULES** — apply the **1-of-2 rule** per Rules.md §13. Tag overlap is dropped as a signal because parent/child relationships structurally share tags. Use only:
-1. Filename match: slug equality against any existing `wiki/MODULES/<slug>.md`.
-2. Title match: H1 equality (case-insensitive) against any existing MODULES note.
-
-If 1+ signal matches: EDIT existing MODULES note (bump `Last Updated`). If 0 signals match: CREATE.
-
-**Cross-category collision check (route = MODULES):** independently of the 1-of-2 same-concept check, grep the wiki index for `wiki/{ARCHITECTURE,FUNCTIONS,RESEARCH,SELF,DIAGRAMS}/**/<slug>.md`. Any match means a non-MODULES note already owns this slug — emit a `SLUG-COLLISION` plan row instead of writing. The user decides (rename the module slug, or merge). Surface the conflicting basename(s) in the row's Notes column. Do NOT auto-route the entry to a different category. Do NOT auto-rename the slug.
+(MODULES is not a curator route per ADR 0001. `/wiki-modules` owns same-concept handling for MODULES — for that path, the slug-from-cluster-prefix is the canonical identifier and re-authoring is overwrite-by-design.)
 
 **RESEARCH/ write-protection (D-19) branches by source:**
 
@@ -137,7 +126,7 @@ If an EDIT would push the target note's body past 1,000 words: SPLIT.
 
 **RESEARCH/ write-protection (D-19):** Do NOT emit a SPLIT row for files under `wiki/RESEARCH/`. The same-concept detection in Step 3 would have already emitted an ALERT for any RESEARCH/ hit — splits on RESEARCH/ notes are not performed. Backlink auto-rewrite (D-05) does NOT modify backlinks that live INSIDE `wiki/RESEARCH/` files. If a backlink in a RESEARCH/ file would otherwise be rewritten, leave it as-is and surface it in the post-write audit (Step 8) as an unrewritten backlink in a read-only folder.
 
-**MODULES split lane:** When a MODULES note exceeds 1,000 words, splits stay under `wiki/MODULES/` — each split is its own MODULES note with its own bare slug, its own deletion-test gate (Step 5a below), and its own Children section. Backlink rewrite rules from D-05 / D-06 / D-07 are unchanged for MODULES splits.
+(MODULES splits are not a curator concern. `/wiki-modules` owns MODULES authoring; if a re-authored module body would exceed 1,000 words, that's handled inside `module-author` — not here.)
 
 ### Step 5 — Produce the plan (DIGS-03, Pattern 5)
 
@@ -154,44 +143,26 @@ Row table format:
 | RULES-PROPOSAL | (text) | — | "Suggest adding category X" — for user to apply manually. |
 | ALERT | `wiki/RESEARCH/<path>` | (entry's original handle category) | session-inbox entry overlaps with read-only research at `<path>`. Routed to <category> per handle. User: reconcile manually if desired. |
 | CONFLICT-ON-RESEARCH | `wiki/RESEARCH/<existing>.md` | RESEARCH | Research-doc concept (from `<source-path>`) overlaps existing read-only research note. Pending interactive resolution in Step 7a — see below. |
-| SLUG-COLLISION | `wiki/MODULES/<slug>.md` ↔ `wiki/<other-category>/<slug>.md` | MODULES | MODULES slug equals an existing basename in another category. Surface only — user decides whether to rename the module slug or merge. |
-| SHALLOW-MODULE | `wiki/MODULES/<slug>.md` | MODULES | Body fails the deletion-test gate (Step 5a below): missing `Purpose`/`Boundary` or fewer than 3 of {Triggers, Storage, Behavior, Rules & Invariants, Children}. Surface only — do not write. |
+| MODULES-VIA-DIGEST-DEPRECATED | (entry slug) | MODULES | session-inbox `@ MODULES::<slug>` handle is deprecated per ADR 0001. The curator does not write MODULES notes. Surface only — user runs `/wiki-modules` to author the module from cluster signals. |
 
 Approving the plan as a whole authorizes every CREATE / EDIT / SPLIT / OVERRIDE row (D-03). A single plan-level approval covers all of those rows — never ask the user to confirm individual entries one at a time.
 
-**CONFLICT-ON-RESEARCH, SLUG-COLLISION, and SHALLOW-MODULE rows are NOT covered by plan-level approval.** They are surface-only:
+**CONFLICT-ON-RESEARCH and MODULES-VIA-DIGEST-DEPRECATED rows are NOT covered by plan-level approval.** They are surface-only:
 - CONFLICT-ON-RESEARCH requires explicit per-conflict instructions in Step 7a before any write to `wiki/RESEARCH/`.
-- SLUG-COLLISION requires the user to manually resolve (rename the module slug or merge) — no curator action this run.
-- SHALLOW-MODULE requires the user to either author a deeper version of the body manually or accept that the concept does not deserve a MODULES note — no curator action this run.
+- MODULES-VIA-DIGEST-DEPRECATED is informational — the curator never writes MODULES. The user runs `/wiki-modules` to refresh the orientation layer.
 
-State this clearly at the bottom of the plan: "Plan approval applies to CREATE/EDIT/SPLIT/OVERRIDE rows. CONFLICT-ON-RESEARCH rows will prompt for per-conflict instructions after approval. SLUG-COLLISION and SHALLOW-MODULE rows are informational — no writes, no follow-up prompts."
-
-### Step 5a — Deletion-test gate (MODULES only)
-
-For every CREATE or EDIT row routed to `MODULES/`, validate the entry/concept body against the inner H2 skeleton of `wiki/_templates/module.md`. The body must satisfy **≥5 of 7** H2s, with two mandatory:
-
-- **Mandatory:** `### Purpose` AND `### Boundary` must both be present.
-- Plus **≥3** of: `### Triggers`, `### Storage`, `### Behavior`, `### Rules & Invariants`, `### Children`.
-
-The 5-of-7 threshold lives here in the prompt — tunable without amending Rules.md (per Rules.md §12 closing note). Re-read it from this section if a future tuning lands; never hard-code the threshold elsewhere.
-
-What "satisfies" means: the H2 heading is present in the entry body AND has at least one non-empty content line under it (not just a heading). A heading with only placeholder text from the template (e.g., `<one paragraph>`) does NOT satisfy the gate — that is the anti-shallow guard.
-
-If a row fails the gate: convert it to a `SHALLOW-MODULE` plan row (per Step 5). Do NOT write the file. Surface the missing H2s in the row's Notes column (e.g., `Notes: missing Boundary; only 2 of {Triggers, Storage, Behavior, Rules & Invariants, Children}`). The user authors a deeper version manually, or accepts the concept does not deserve a MODULES note.
-
-**This gate runs ONLY for routes ending in `MODULES/`.** Entries routed to ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, or DIAGRAMS are unaffected — their template skeletons differ and the deletion test does not apply.
+State this clearly at the bottom of the plan: "Plan approval applies to CREATE/EDIT/SPLIT/OVERRIDE rows. CONFLICT-ON-RESEARCH rows will prompt for per-conflict instructions after approval. MODULES-VIA-DIGEST-DEPRECATED rows are informational — run `/wiki-modules` to author module notes."
 
 ### Step 6 — Validate the plan against Rules.md (DIGS-05, DIGS-06, DIGS-07)
 
 For every CREATE/EDIT/SPLIT row:
 - Filename matches `^[a-z0-9][a-z0-9-]*\.md$` (Rules.md §5; DIGS-06).
-- Destination folder ∈ {ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS, MODULES} (Rules.md §2; DIGS-04).
+- Destination folder ∈ {ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS} (Rules.md §2; DIGS-04). MODULES is not a curator destination per ADR 0001.
 - Summary ≤ 25 words (Rules.md §3; DIGS-07).
 - Body ≤ 1,000 words; otherwise must be a SPLIT row (Rules.md §4; DIGS-08).
 - All template fields present (Summary, Tags, Created, Last Updated, ## Content, ## Related Notes — Rules.md §3; DIGS-05).
 - Wiki-links use `[[basename|Display Title]]` piped form, never bare `[[Title]]`, never folder-prefixed paths (Rules.md §7; DIGS-10). The basename matches the target file's name without `.md` (kebab-case).
-- For rows routed to MODULES: the deletion-test gate from Step 5a passed (no SHALLOW-MODULE downgrade), AND the body's `### Children` section uses H4 sub-headings of the form `#### From <CATEGORY>` where `<CATEGORY>` ∈ {ARCHITECTURE, FUNCTIONS, RESEARCH, DIAGRAMS}. Empty groups must be omitted (no `#### From <X>` heading without bullets beneath it).
-- No write target is `wiki/Rules.md` or anything under `wiki/_templates/` (DIGS-13, D-16, Rules.md §9).
+- No write target is `wiki/Rules.md`, anything under `wiki/_templates/`, or anything under `wiki/MODULES/` (DIGS-13, D-16, Rules.md §9, ADR 0001 — `wiki/MODULES/` is owned by `/wiki-modules`).
 - No write target escapes `wiki/` (path safety).
 
 If any row fails validation: report the failure in the plan output and HALT before the apply step. Do not silently fix; the user may want to know.
@@ -206,8 +177,7 @@ For each row (except CONFLICT-ON-RESEARCH, which goes to Step 7a):
 - RULES-PROPOSAL: do nothing in the wiki. The proposal stays in the plan output for the user.
 - ALERT: do nothing in the wiki. Surface in the plan output only. The user decides whether to update the research note manually.
 - CONFLICT-ON-RESEARCH: SKIP here. Defer to Step 7a interactive resolution.
-- SLUG-COLLISION: do nothing in the wiki. Surface only. The user decides (rename slug or merge).
-- SHALLOW-MODULE: do nothing in the wiki. Surface only. The user authors a deeper version or drops the concept.
+- MODULES-VIA-DIGEST-DEPRECATED: do nothing in the wiki. Surface only. The user runs `/wiki-modules` to author the orientation note.
 
 ### Step 7a — Interactive resolution for CONFLICT-ON-RESEARCH rows
 
@@ -266,50 +236,39 @@ After the link audit passes, update `wiki/topic-index.md` to reflect this digest
 
 Read `wiki/topic-index.md`.
 
-**One-time restructure on first MODULES write.** If a MODULES note is in this digest's CREATE list AND the index file does not yet contain a `### Modules` H3 heading, perform a one-time additive restructure FIRST, before any bullet updates:
+The index has two H3 sections inside `## Content` (Rules.md §11):
 
-1. Inside `## Content`, after the existing maintenance HTML comment block, insert two H3 headings:
-   - `### Modules` (followed by a blank line, no bullets yet)
-   - `### Notes` (followed by a blank line)
-2. Move every existing top-level bullet (the flat list pre-restructure) into the `### Notes` section, preserving order. Do not move any bullet into `### Modules` — module bullets only appear when added explicitly by Step 9 below.
-3. The HTML comment block stays where it is (above `### Modules`).
-4. Surface a one-line note in the digest summary: `"topic-index.md: restructured into ### Modules / ### Notes H3 split (one-time)."`
+- `### Modules` — bullets owned by `/wiki-modules` and `module-author`. **The curator never touches `### Modules`.** ADR 0001 makes `/wiki-modules` the sole writer to MODULES content, including its row in the index.
+- `### Notes` — bullets owned by the curator (this step). One bullet per detail-note topic across ARCHITECTURE/FUNCTIONS/RESEARCH/SELF/DIAGRAMS.
 
-The restructure is purely additive — no bullets are removed, no summaries change. After it lands, all subsequent index updates use the H3-aware logic below.
-
-**H3-aware bullet update logic.** Inside `## Content`, the index has two H3 sections (`### Modules` and `### Notes`). Bullet form differs by section (Rules.md §11):
+Bullet form for `### Notes` (the only section you update):
 
 ```
-### Modules
-- **<slug>** — Summary (≤25 words). Module: MODULES/<slug>.md
-
-### Notes
 - **topic-name** — Summary (≤25 words). Files: PATH1, PATH2
 ```
 
-For each note **created** in this digest run:
-1. **Note routed to MODULES/**: add a bullet under `### Modules`. Topic = the bare slug. Summary = a ≤25-word synthesis of the note's purpose (you may use the note's `**Summary**:` frontmatter as a starting point). `Module: MODULES/<slug>.md`. Children of the module are NOT removed from `### Notes` — they continue to be indexed flatly there.
-2. **Note routed elsewhere (ARCHITECTURE/FUNCTIONS/RESEARCH/SELF/DIAGRAMS)**: add or update a bullet under `### Notes` with the existing logic:
-   - Determine the topic. Prefer an existing `### Notes` bullet whose topic name appears in the note's `**Tags**:` line or H1 title (case-insensitive, ignore the leading `#` on tags).
-   - **Existing topic bullet found:** append the note's relative path (from `wiki/` root, e.g. `ARCHITECTURE/auth-base-flow.md`) to the comma-separated `Files:` list, deduped. Do NOT rewrite the topic summary unless the new note materially expands the topic's scope — preserve what was there.
-   - **No matching topic bullet:** create a new bullet under `### Notes`. Topic name = the dominant tag (without `#`) or a kebab-case derivation of the note's title concept. Summary = a ≤25-word sentence describing what the topic covers (synthesize from the note's Summary field; do NOT copy verbatim if the note's summary is too narrow). Files = the new note's path.
+For each note **created** in this digest run (CREATE row, route ∈ {ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS}):
+- Determine the topic. Prefer an existing `### Notes` bullet whose topic name appears in the note's `**Tags**:` line or H1 title (case-insensitive, ignore the leading `#` on tags).
+- **Existing topic bullet found:** append the note's relative path (from `wiki/` root, e.g. `ARCHITECTURE/auth-base-flow.md`) to the comma-separated `Files:` list, deduped. Do NOT rewrite the topic summary unless the new note materially expands the topic's scope — preserve what was there.
+- **No matching topic bullet:** create a new bullet under `### Notes`. Topic name = the dominant tag (without `#`) or a kebab-case derivation of the note's title concept. Summary = a ≤25-word sentence describing what the topic covers (synthesize from the note's Summary field; do NOT copy verbatim if the note's summary is too narrow). Files = the new note's path.
 
-For each note **edited** in this digest run (EDIT row): no index change unless the edit added or removed primary tags. If tags changed, update the topic mapping accordingly. For MODULES EDIT rows, keep the `### Modules` bullet's `Module: MODULES/<slug>.md` unchanged; refresh the summary only if the module's purpose materially shifted.
+For each note **edited** in this digest run (EDIT row): no index change unless the edit added or removed primary tags. If tags changed, update the topic mapping accordingly.
 
-For each note **split** in this digest run (SPLIT row): replace the old path in any `Files:` list with the new split paths, deduped. For MODULES splits, the parent's `### Modules` bullet is removed and one bullet per split is added (each with its own `Module:` path).
+For each note **split** in this digest run (SPLIT row): replace the old path in any `Files:` list with the new split paths, deduped.
 
-For any note **deprecated** (Tags now contain `#deprecated` and a non-deprecated alternative is also indexed): remove the deprecated path from `Files:` lists (or the deprecated module's bullet from `### Modules`). If a topic bullet under `### Notes` ends up with zero files, remove the bullet.
+For any note **deprecated** (Tags now contain `#deprecated` and a non-deprecated alternative is also indexed): remove the deprecated path from `Files:` lists. If a topic bullet under `### Notes` ends up with zero files, remove the bullet.
 
 Final touches:
-- Keep bullets alphabetized by topic name (ASCII sort) **within each H3 section** for stable diffs across digests.
+- Keep bullets alphabetized by topic name (ASCII sort) within `### Notes` for stable diffs across digests.
 - Bump the `**Last Updated**:` field at the top of `topic-index.md` to the current ISO-8601 timestamp.
-- Cap: ≤ 100 bullets total **across both sections combined**. If exceeded, surface a RULES-PROPOSAL row in the digest summary suggesting a further split (e.g., split `### Notes` by category) — do not auto-split.
+- Cap: ≤ 100 bullets total across both sections combined. If exceeded, surface a RULES-PROPOSAL row in the digest summary suggesting a further split (e.g., split `### Notes` by category) — do not auto-split.
 - Do NOT touch unrelated bullets in this update — only the rows affected by this digest's writes. Stable diff matters.
+- Do NOT touch the `### Modules` section, its bullets, or its surrounding whitespace. If the `### Modules` H3 does not exist yet, do NOT create it — `/wiki-modules` does that on first MODULES write.
 - Preserve the HTML comment block (the maintenance note inside `## Content`). Do not delete or rewrite it.
 
 If `wiki/topic-index.md` does not exist yet (e.g., the user never ran `/wiki-install` after the recall system was added), create it from the canonical shape (see `wiki/topic-index.md` in the source distribution) before adding bullets.
 
-This step writes ONLY to `wiki/topic-index.md`. It does not touch any other file. It does not propose new categories — those still flow through RULES-PROPOSAL rows in Step 5.
+This step writes ONLY to `wiki/topic-index.md`'s `### Notes` section, its frontmatter `Last Updated` field, and the maintenance comment block (untouched). It does not propose new categories — those still flow through RULES-PROPOSAL rows in Step 5.
 
 ### Step 10 — Reset the live inbox
 
@@ -387,7 +346,8 @@ If the wiki-digest skill cannot fork (`CLAUDE_CODE_FORK_SUBAGENT=0`), the wiki-d
 
 - You do not modify `wiki/Rules.md` (DIGS-13, D-16). If you think Rules.md should change, surface a RULES-PROPOSAL row.
 - You do not touch source code, planning artifacts, hooks, or anything outside `wiki/`.
-- You do not invent categories beyond Rules.md §2's six canonical folders (ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS, MODULES). If an entry doesn't fit, surface a RULES-PROPOSAL.
+- You do not write to `wiki/MODULES/` (ADR 0001 — `/wiki-modules` is sole writer). `@ MODULES::` session-inbox handles surface as `MODULES-VIA-DIGEST-DEPRECATED` plan rows.
+- You do not invent categories beyond Rules.md §2's five curator-writeable folders (ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS). If an entry doesn't fit, surface a RULES-PROPOSAL.
 - You do not invent new templates beyond what exists in `wiki/_templates/`. If a trigger from Rules.md §12 doesn't match cleanly, fall back to `note.md` rather than improvising a new scaffold. New templates require a Rules.md §12 amendment in the same change.
 - You do not use embeddings or semantic similarity for duplicate detection (anti-feature A10). Filename + title + tag overlap only. No embeddings.
 - You do not skip routing on disagreement (D-02). You always pick a route — for session-inbox entries via OVERRIDE if needed, for research-doc concepts via your category pick from the doc body.

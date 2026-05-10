@@ -21,7 +21,7 @@ The curator's broader protocol (routing details, template enforcement, same-conc
 
 ## Resolve the session inbox path
 
-The session inbox path resolves at runtime as `${ARGUMENTS:-wiki/inbox/_session.md}` — if `$ARGUMENTS` is non-empty (the user passed an alternative inbox path), use it; otherwise default to `wiki/inbox/_session.md`, the live session state populated by the inbox-update skill. Each bash injection below resolves this inline (Claude Code's `!` injections don't share shell state across blocks, so the variable must be set inside each block).
+The session inbox path resolves at runtime as `$ARGUMENTS` if non-empty (the user passed an alternative inbox path), otherwise the default `wiki/inbox/_session.md` populated by the inbox-update skill. Each bash injection below resolves this inline via `P="$ARGUMENTS"; P="${P:-wiki/inbox/_session.md}"; …` (Claude Code's `!` injections don't share shell state across blocks, so the variable must be set inside each block). Do NOT write `${ARGUMENTS:-default}` directly — bash's `${VAR:-default}` syntax around a Claude-Code-substituted variable collides with the harness's preprocessing and aborts with `Shell command failed for pattern …`. The `tests/static.sh` lint enforces this.
 
 The research-doc discovery always scans `wiki/inbox/` regardless of `$ARGUMENTS` — research docs live alongside the canonical session inbox, not at fixture paths.
 
@@ -32,7 +32,7 @@ The research-doc discovery always scans `wiki/inbox/` regardless of `$ARGUMENTS`
 Read the resolved session inbox path. If the file does not exist: note "No session inbox found at <path>" and continue to 1b (a missing session inbox is not fatal — research docs may still be present).
 
 Count the entry handle lines:
-!`P="${ARGUMENTS:-wiki/inbox/_session.md}"; grep -cE '^@ (ARCHITECTURE|FUNCTIONS|RESEARCH|SELF|DIAGRAMS|MODULES)::' "$P" 2>/dev/null || echo 0`
+!`P="$ARGUMENTS"; P="${P:-wiki/inbox/_session.md}"; grep -cE '^@ (ARCHITECTURE|FUNCTIONS|RESEARCH|SELF|DIAGRAMS|MODULES)::' "$P" 2>/dev/null || echo 0`
 
 ### 1b. Research docs
 
@@ -58,7 +58,7 @@ Create the archive directory if it does not exist:
 ### 2a. Archive the session inbox
 
 Copy the session inbox to `wiki/inbox/_archive/<TS>-session.md`:
-!`P="${ARGUMENTS:-wiki/inbox/_session.md}"; TS=$(date +%Y-%m-%dT%H%M); cp "$P" "wiki/inbox/_archive/${TS}-session.md" && echo "archived session inbox to wiki/inbox/_archive/${TS}-session.md"`
+!`P="$ARGUMENTS"; P="${P:-wiki/inbox/_session.md}"; TS=$(date +%Y-%m-%dT%H%M); cp "$P" "wiki/inbox/_archive/${TS}-session.md" && echo "archived session inbox to wiki/inbox/_archive/${TS}-session.md"`
 
 ### 2b. Archive each research doc
 
@@ -78,7 +78,7 @@ The curator needs: (a) the session inbox content, (b) the research-doc payload (
 Inputs:
 
 - Session inbox content:
-  !`P="${ARGUMENTS:-wiki/inbox/_session.md}"; cat "$P" 2>/dev/null`
+  !`P="$ARGUMENTS"; P="${P:-wiki/inbox/_session.md}"; cat "$P" 2>/dev/null`
 
 - Research-doc payload — for each `.md` file in `wiki/inbox/` (excluding `_session.md` and underscore-prefixed files), emit a delimited block the curator can iterate by:
   !`for f in $(find wiki/inbox -maxdepth 1 -type f -name '*.md' ! -name '_*' 2>/dev/null | sort); do echo "=== RESEARCH-DOC: $f ==="; cat "$f"; echo; echo "=== END RESEARCH-DOC ==="; echo; done`

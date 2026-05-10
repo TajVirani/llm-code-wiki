@@ -141,6 +141,14 @@ for skill in "$REPO_ROOT"/.claude/skills/*/SKILL.md; do
       fail "bash -n !-block in $rel" "$(basename "$blk"): $(cat /tmp/lcw-bashn.err)"
       layer_ok=0
     fi
+    # Lint: bash ${VAR:-default} default-value syntax around Claude Code skill
+    # variables (currently ${ARGUMENTS}) collides with the harness's own
+    # preprocessing — see CHANGELOG 1.3.3. The safe pattern is
+    # `P="$ARGUMENTS"; P="${P:-default}"`. Reject the fragile form.
+    if grep -qE '\$\{ARGUMENTS[:-]' "$blk"; then
+      fail "no \${ARGUMENTS:-…} in !-block in $rel" "$(basename "$blk"): the bash default-value syntax around \$ARGUMENTS collides with Claude Code's harness substitution. Use bare \$ARGUMENTS into a regular var, then default that var: \`P=\"\$ARGUMENTS\"; P=\"\${P:-default}\"\`."
+      layer_ok=0
+    fi
   done
   if [ "$layer_ok" = "1" ]; then
     pass "bash -n + single-line on $bang_count !-block(s) in $rel"

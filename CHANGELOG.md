@@ -5,6 +5,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 The `Migration` subsection of each release lists anything `/wiki-update` cannot do for you — manual steps a consumer must take when upgrading past that version.
 
+## [1.3.3] — 2026-05-10
+
+### Fixed
+- **`/wiki-digest` aborted with `Shell command failed for pattern "!P=\"${ARGUMENTS:-wiki/inbox/_session.md}\"; cat \"$P\" 2>/dev/null"`.** Three `!`-injected backtick blocks in `wiki-digest/SKILL.md` (entry-count, archive-session, cat-session) used `${ARGUMENTS:-wiki/inbox/_session.md}` to default a path. Bash's `${VAR:-default}` syntax around `${ARGUMENTS}` (a Claude-Code-substituted skill variable) collides with the harness's own preprocessing of `${ARGUMENTS}` and causes the harness to reject the command. Fixed by splitting the form into bare `$ARGUMENTS` (which the harness substitutes cleanly) feeding a regular bash variable, then defaulting that: `P="$ARGUMENTS"; P="${P:-wiki/inbox/_session.md}"; …`. Same flavor of harness-fragility as the multi-line `!`-injection bug fixed in 1.3.2 and the awk `$N`-expansion bug fixed in 1.3.0 — bash works fine when run directly, breaks only through the harness.
+
+### Added
+- **`tests/static.sh` lints `${ARGUMENTS:-…}` in `!`-injected blocks.** Reject any `!`-block matching `\$\{ARGUMENTS[:-]` and point at the safe pattern. Caught all three occurrences in wiki-digest in CI.
+
+### Changed
+- **wiki-digest "Resolve the session inbox path" prose updated** to document the `P="$ARGUMENTS"; P="${P:-default}"` pattern and explain the `${ARGUMENTS:-…}` collision, with a pointer to the `tests/static.sh` lint that enforces it.
+
+### Migration
+- **No manual migration required.** Fix activates the moment the new `wiki-digest/SKILL.md` lands via `/wiki-update`. Behavior of `/wiki-digest` is identical otherwise — only the argument-default literal layout changed.
+
 ## [1.3.2] — 2026-05-09
 
 ### Fixed

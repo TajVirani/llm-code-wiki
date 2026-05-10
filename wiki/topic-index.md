@@ -2,7 +2,7 @@
 **Summary**: Greppable topic-to-files index — entry point for wiki recall.
 **Tags**: #wiki #index #recall
 **Created**: 2026-04-30T00:00:00+00:00
-**Last Updated**: 2026-05-06T00:00:00+00:00
+**Last Updated**: 2026-05-09T00:00:00+00:00
 
 ---
 
@@ -31,7 +31,9 @@ Do not edit by hand — bullets that are not the result of a digest run will be 
 - **curator-step-9-index-update** — Curator protocol step that rebuilds topic-index.md after each digest, scoped to topics affected by writes. Files: ARCHITECTURE/curator-step-9-index-update.md
 - **deletion-test-gate** — Curator Step 5a gate enforcing ≥5 of 7 inner H2s with `Purpose` and `Boundary` mandatory before any MODULES write. Files: ARCHITECTURE/deletion-test-gate.md
 - **digest-step-6-inbox-reset** — wiki-digest skill body resets `wiki/inbox/_session.md` to empty template after curator success and post-write audit. Files: ARCHITECTURE/digest-step-6-inbox-reset.md
+- **dist-manifest** — Distribution manifest listing every file `/wiki-update` and remote-install ship from upstream, with per-line `overwrite`/`keep` policy. Files: ARCHITECTURE/dist-manifest.md
 - **fork-context-no-parent-runtime** — Under Claude Code `context: fork`, the skill body becomes the subagent prompt and no parent runtime resumes; lifecycle steps must be owned by the subagent. Files: RESEARCH/fork-context-no-parent-runtime.md
+- **hook-runtime-state-gitignored** — `.gitignore` excludes per-machine derived/ephemeral artifacts the scaffold produces — hook state, session inbox, archives, crawler scratch, settings.local. Files: ARCHITECTURE/hook-runtime-state-gitignored.md
 - **inbox-stop-hook** — Stop hook script orchestrating capture path, loop-protection trifecta D-01/D-02/D-03, and per-session brainstorm counter. Files: FUNCTIONS/inbox-stop-hook.md
 - **install-template-files** — Two scaffold-internal templates (`CLAUDE-MD-SECTION.md`, `topic-index.seed.md`) under `.claude/skills/wiki-install/templates/` shared by `/wiki-install` and `/wiki-update`. Files: ARCHITECTURE/install-template-files.md
 - **inbox-update-skill** — Skill maintaining `wiki/inbox/_session.md` from artifact ops; adds brainstorm-fallback mode that scans recent conversation for design decisions. Files: FUNCTIONS/inbox-update-skill.md
@@ -55,10 +57,12 @@ Do not edit by hand — bullets that are not the result of a digest run will be 
 - **update-flow** — End-to-end versioning + upstream update mechanism anchored on `VERSION`, `CHANGELOG.md`, and `dist-manifest.txt` per-line `overwrite`/`keep` policy. Files: ARCHITECTURE/update-flow.md
 - **version-1-1-0-release** — Release 1.1.0 ships the bare-to-piped wiki-link contract switch with deterministic transform recipe and post-sweep audit. Files: ARCHITECTURE/version-1-1-0-release.md
 - **version-1-2-0-release** — Release 1.2.0 ships the MODULES orientation layer with Rules.md amendments, new template, deletion-test gate, and topic-index restructure. Files: ARCHITECTURE/version-1-2-0-release.md
+- **version-1-3-0-release** — Release 1.3.0 ships modules-ownership refactor (ADR 0001), parallel `module-author` dispatch, `/design-pattern-doc` skill, and awk skill-injection fix. Files: ARCHITECTURE/version-1-3-0-release.md
+- **wiki-code-crawler-skill** — `/wiki-code-crawler` crawls the codebase, builds an import+call graph, clusters source into 200–700-word concepts, and emits one research doc per concept. Files: FUNCTIONS/wiki-code-crawler-skill.md
 - **wiki-curator-agent** — Curator subagent routing entries into filed notes per Rules.md, with D-19 RESEARCH/ branching and Step 2c specialized-template selection from `wiki/_templates/`. Files: FUNCTIONS/wiki-curator-agent.md
 - **wiki-digest-skill** — `/wiki-digest` consolidates session inbox + research docs into filed notes via the curator, owning archive-before-write and source cleanup. Files: FUNCTIONS/wiki-digest-skill.md
 - **wiki-install-skill** — `/wiki-install` bootstraps the auto-wiki system as five Bash blocks: scaffold via templates, jq hook merge, CLAUDE.md append, smoke tests, version stamp. Files: FUNCTIONS/wiki-install-skill.md
-- **wiki-modules-skill** — Read-only `/wiki-modules` skill proposing MODULES notes for clusters lacking one and auditing existing modules deterministically. Files: FUNCTIONS/wiki-modules-skill.md
+- **wiki-modules-skill** — `/wiki-modules` is sole writer to `wiki/MODULES/` (ADR 0001) — detects clusters via three deterministic signals and dispatches `module-author` subagents in parallel. Files: FUNCTIONS/wiki-modules-skill.md
 - **wiki-recall-subagent** — Read-only sub-agent that consults topic-index plus grep, applies a relevance filter, and returns a compact context payload. Files: ARCHITECTURE/wiki-recall-subagent.md
 - **wiki-update-skill** — `/wiki-update` pulls upstream improvements: version compare, changelog slice, manifest-driven fetch, settings.json + CLAUDE.md re-merge from template, version stamp. Files: FUNCTIONS/wiki-update-skill.md
 

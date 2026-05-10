@@ -108,9 +108,14 @@ else
 fi
 ```
 
-## Block 2 — settings.json merge (Stop + UserPromptSubmit unified)
+## Block 2 — settings.json merge (Stop + UserPromptSubmit + default permissions)
 
-Registers both hooks in `.claude/settings.json`. Case A (file absent) writes a fresh canonical structure via heredoc. Case B/C (file present) requires `jq` and runs a single parametrized `upsert_hook` filter for both events — the filter removes any existing matching entries (by command-substring) and appends the canonical entry, so re-runs converge to a zero-content-diff. The literal `$CLAUDE_PROJECT_DIR` token must survive (B3 verification) — shell expansion would write a hardcoded install-time path that breaks portability.
+Registers both hooks in `.claude/settings.json` and seeds a small default `permissions.allow` set so the auto-wiki write path doesn't prompt the user for every `_session.md` edit. Case A (file absent) writes a fresh canonical structure via heredoc. Case B/C (file present) requires `jq` and runs parametrized `upsert_hook` and `upsert_permission` filters — each removes any existing matching entries and appends the canonical entry, so re-runs converge to a zero-content-diff. The literal `$CLAUDE_PROJECT_DIR` token must survive (B3 verification) — shell expansion would write a hardcoded install-time path that breaks portability.
+
+**Default permissions seeded** (the inbox capture path writes to this file every Stop-hook fire; without these, every turn that produces a code edit would prompt for `_session.md` write approval):
+- `Read(wiki/inbox/_session.md)`
+- `Edit(wiki/inbox/_session.md)`
+- `Write(wiki/inbox/_session.md)`
 
 **This block writes to `.claude/settings.json` — the user's settings-merge approval prompt.**
 
@@ -120,11 +125,25 @@ SETTINGS="$CLAUDE_PROJECT_DIR/.claude/settings.json"
 STATUS_FILE=/tmp/lcw-install-status.txt
 record() { printf '%s=%s\n' "$1" "$2" >> "$STATUS_FILE"; }
 
+# Default permissions seeded on every install (idempotent — already-present entries are skipped)
+DEFAULT_PERMS=(
+  "Read(wiki/inbox/_session.md)"
+  "Edit(wiki/inbox/_session.md)"
+  "Write(wiki/inbox/_session.md)"
+)
+
 if [ ! -f "$SETTINGS" ]; then
-  # Case A: file absent — create fresh with both hooks (no jq needed)
+  # Case A: file absent — create fresh with both hooks + default permissions (no jq needed)
   mkdir -p "$(dirname "$SETTINGS")"
   cat > "$SETTINGS" <<'JSON'
 {
+  "permissions": {
+    "allow": [
+      "Read(wiki/inbox/_session.md)",
+      "Edit(wiki/inbox/_session.md)",
+      "Write(wiki/inbox/_session.md)"
+    ]
+  },
   "hooks": {
     "Stop": [
       {
@@ -153,9 +172,10 @@ if [ ! -f "$SETTINGS" ]; then
 JSON
   record SETTINGS_STOP "created"
   record SETTINGS_RECALL "created"
-  echo "[wiki-install] Created .claude/settings.json with Stop + UserPromptSubmit hook entries."
+  record SETTINGS_PERMS "created (3 entries)"
+  echo "[wiki-install] Created .claude/settings.json with Stop + UserPromptSubmit hook entries and default _session.md permissions."
 else
-  # Case B/C: file exists — require jq, then upsert each hook idempotently
+  # Case B/C: file exists — require jq, then upsert each hook + permission idempotently
   if ! command -v jq >/dev/null 2>&1; then
     echo "[wiki-install] ABORT: jq required to merge .claude/settings.json. Install jq, OR apply the manual snippet from .claude/skills/wiki-install/SETTINGS-SNIPPET.md and re-run."
     exit 1
@@ -179,15 +199,43 @@ else
     ' "$SETTINGS" > /tmp/lcw-settings.json && mv /tmp/lcw-settings.json "$SETTINGS"
   }
 
+  # Helper: upsert one permission string into .permissions.allow (skip if already present — preserves user-added entries)
+  upsert_permission() {
+    local perm="$1"
+    jq --arg perm "$perm" '
+      .permissions //= {}
+      | .permissions.allow //= []
+      | if (.permissions.allow | index($perm)) then . else .permissions.allow += [$perm] end
+    ' "$SETTINGS" > /tmp/lcw-settings.json && mv /tmp/lcw-settings.json "$SETTINGS"
+  }
+
   upsert_hook "Stop" "inbox-stop.sh" '"$CLAUDE_PROJECT_DIR"/.claude/hooks/inbox-stop.sh'
   upsert_hook "UserPromptSubmit" "recall-prompt.sh" '"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh'
 
-  # B3 verification: literal $CLAUDE_PROJECT_DIR token must survive in both entries
-  if grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/inbox-stop.sh' "$SETTINGS" \
-     && grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh' "$SETTINGS"; then
+  PERMS_ADDED=0
+  for perm in "${DEFAULT_PERMS[@]}"; do
+    if grep -Fq "$perm" "$SETTINGS"; then continue; fi
+    upsert_permission "$perm"
+    PERMS_ADDED=$((PERMS_ADDED + 1))
+  done
+
+  # B3 verification: literal $CLAUDE_PROJECT_DIR token must survive in both entries.
+  # JSON escapes the surrounding quotes (\"$CLAUDE_PROJECT_DIR\"), so use grep -F
+  # with the escaped form to byte-match what jq actually wrote.
+  if grep -qF '\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/inbox-stop.sh' "$SETTINGS" \
+     && grep -qF '\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/recall-prompt.sh' "$SETTINGS"; then
     record SETTINGS_STOP "$STATUS_STOP"
     record SETTINGS_RECALL "$STATUS_RECALL"
-    echo "[wiki-install] settings.json: Stop hook $STATUS_STOP; UserPromptSubmit hook $STATUS_RECALL."
+    if [ "$PERMS_ADDED" -eq 0 ]; then
+      record SETTINGS_PERMS "already present"
+    else
+      record SETTINGS_PERMS "added $PERMS_ADDED entr$([ "$PERMS_ADDED" -eq 1 ] && echo y || echo ies)"
+    fi
+    if [ "$PERMS_ADDED" -eq 0 ]; then
+      echo "[wiki-install] settings.json: Stop hook $STATUS_STOP; UserPromptSubmit hook $STATUS_RECALL; default permissions already present."
+    else
+      echo "[wiki-install] settings.json: Stop hook $STATUS_STOP; UserPromptSubmit hook $STATUS_RECALL; added $PERMS_ADDED default permission entr$([ "$PERMS_ADDED" -eq 1 ] && echo y || echo ies)."
+    fi
   else
     echo "[wiki-install] ABORT: post-merge verification failed — \$CLAUDE_PROJECT_DIR token missing from settings.json. Restore from backup and re-run."
     exit 1
@@ -329,6 +377,7 @@ cat <<EOF
 [wiki-install] wiki/topic-index.md               — $(get TOPIC_INDEX)
 [wiki-install] settings.json (Stop)              — $(get SETTINGS_STOP)
 [wiki-install] settings.json (UserPromptSubmit)  — $(get SETTINGS_RECALL)
+[wiki-install] settings.json (default perms)     — $(get SETTINGS_PERMS)
 [wiki-install] CLAUDE.md                         — $(get CLAUDE_MD)
 [wiki-install] Version stamp                     — $(get VERSION_STAMP)
 [wiki-install] Smoke 1  (Stop hook fires)        — $(get SMOKE_1)

@@ -217,9 +217,14 @@ done < "$MANIFEST_FILE"
 rm -f "$MANIFEST_FILE"
 ```
 
-## Step 5 — Re-merge .claude/settings.json (preserve user hooks)
+## Step 5 — Re-merge .claude/settings.json (preserve user hooks; backfill default permissions)
 
-The hook entries we own are identified by command-substring: `inbox-stop.sh` (Stop event) and `recall-prompt.sh` (UserPromptSubmit event). For each, we remove any matching entries (defensively: there should be one, but loop in case of duplicates) and append the canonical entry. Permissions, env vars, MCP servers, and unrelated hooks are untouched.
+The hook entries we own are identified by command-substring: `inbox-stop.sh` (Stop event) and `recall-prompt.sh` (UserPromptSubmit event). For each, we remove any matching entries (defensively: there should be one, but loop in case of duplicates) and append the canonical entry. We also backfill a small default `permissions.allow` set so installs from older versions (which didn't seed these) gain auto-approval for the inbox capture path. Other permissions, env vars, MCP servers, and unrelated hooks are untouched — the permission backfill skips entries already present (whether seeded by us originally or added by the user).
+
+**Default permissions backfilled** (skipped if already present):
+- `Read(wiki/inbox/_session.md)`
+- `Edit(wiki/inbox/_session.md)`
+- `Write(wiki/inbox/_session.md)`
 
 **Require `jq`** — same constraint as `wiki-install` Step 5/5b:
 
@@ -237,11 +242,24 @@ Otherwise re-merge in place:
 
 ```bash
 SETTINGS="$CLAUDE_PROJECT_DIR/.claude/settings.json"
+DEFAULT_PERMS=(
+  "Read(wiki/inbox/_session.md)"
+  "Edit(wiki/inbox/_session.md)"
+  "Write(wiki/inbox/_session.md)"
+)
+
 if [ ! -f "$SETTINGS" ]; then
-  echo "[wiki-update] WARN: .claude/settings.json missing — creating fresh with both hook entries."
+  echo "[wiki-update] WARN: .claude/settings.json missing — creating fresh with both hook entries and default permissions."
   mkdir -p "$(dirname "$SETTINGS")"
   cat > "$SETTINGS" <<'JSON'
 {
+  "permissions": {
+    "allow": [
+      "Read(wiki/inbox/_session.md)",
+      "Edit(wiki/inbox/_session.md)",
+      "Write(wiki/inbox/_session.md)"
+    ]
+  },
   "hooks": {
     "Stop": [
       {
@@ -268,7 +286,7 @@ if [ ! -f "$SETTINGS" ]; then
   }
 }
 JSON
-  echo "[wiki-update] Created .claude/settings.json with Stop + UserPromptSubmit entries."
+  echo "[wiki-update] Created .claude/settings.json with Stop + UserPromptSubmit entries and default _session.md permissions."
 else
   # Stop hook upsert
   STOP_CMD='"$CLAUDE_PROJECT_DIR"/.claude/hooks/inbox-stop.sh'
@@ -294,10 +312,28 @@ else
     | .hooks.UserPromptSubmit[0].hooks += [{"type":"command","command":$cmd,"timeout":10}]
   ' "$SETTINGS" > /tmp/lcw-settings.json && mv /tmp/lcw-settings.json "$SETTINGS"
 
-  # B3 verification — literal $CLAUDE_PROJECT_DIR token must survive
-  if grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/inbox-stop.sh' "$SETTINGS" \
-     && grep -q '"$CLAUDE_PROJECT_DIR"/.claude/hooks/recall-prompt.sh' "$SETTINGS"; then
-    echo "[wiki-update] Re-merged .claude/settings.json (Stop + UserPromptSubmit entries refreshed)."
+  # Default-permission backfill — only adds missing entries, never removes user-added ones
+  PERMS_ADDED=0
+  for perm in "${DEFAULT_PERMS[@]}"; do
+    if grep -Fq "$perm" "$SETTINGS"; then continue; fi
+    jq --arg perm "$perm" '
+      .permissions //= {}
+      | .permissions.allow //= []
+      | if (.permissions.allow | index($perm)) then . else .permissions.allow += [$perm] end
+    ' "$SETTINGS" > /tmp/lcw-settings.json && mv /tmp/lcw-settings.json "$SETTINGS"
+    PERMS_ADDED=$((PERMS_ADDED + 1))
+  done
+
+  # B3 verification — literal $CLAUDE_PROJECT_DIR token must survive.
+  # JSON escapes the surrounding quotes (\"$CLAUDE_PROJECT_DIR\"), so use grep -F
+  # with the escaped form to byte-match what jq actually wrote.
+  if grep -qF '\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/inbox-stop.sh' "$SETTINGS" \
+     && grep -qF '\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/recall-prompt.sh' "$SETTINGS"; then
+    if [ "$PERMS_ADDED" -eq 0 ]; then
+      echo "[wiki-update] Re-merged .claude/settings.json (Stop + UserPromptSubmit refreshed; default permissions already present)."
+    else
+      echo "[wiki-update] Re-merged .claude/settings.json (Stop + UserPromptSubmit refreshed; backfilled $PERMS_ADDED default permission entr$([ "$PERMS_ADDED" -eq 1 ] && echo y || echo ies))."
+    fi
   else
     echo "[wiki-update] ABORT: post-merge verification failed — settings.json may have lost the literal \$CLAUDE_PROJECT_DIR token. Restore from your VCS and re-run."
     exit 1
@@ -358,7 +394,7 @@ echo "[wiki-update] Files overwritten:           $COUNT_OVERWRITE"
 echo "[wiki-update] User-owned files unchanged:  wiki/Rules.md, wiki/_templates/note.md, wiki/topic-index.md"
 echo "[wiki-update]   - kept (upstream same):    $COUNT_KEEP_SAME"
 echo "[wiki-update]   - kept (upstream differs): $COUNT_KEEP_DIFFER"
-echo "[wiki-update] settings.json:               re-merged (Stop + UserPromptSubmit)"
+echo "[wiki-update] settings.json:               re-merged (Stop + UserPromptSubmit + default permissions backfilled if missing)"
 echo "[wiki-update] CLAUDE.md:                   Auto-maintained wiki section refreshed"
 
 if [ -s "$REVIEW_LIST" ]; then

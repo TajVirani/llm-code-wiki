@@ -1,8 +1,8 @@
 
 **Summary**: `/wiki-install` slash command bootstraps the auto-wiki system as five Bash blocks — idempotent, template-driven, hook-merging, and stamp-versioned.
-**Tags**: #skill #install #bootstrap #function #linking
+**Tags**: #skill #install #bootstrap #function #linking #permissions
 **Created**: 2026-04-30T16:09:00+00:00
-**Last Updated**: 2026-05-01T23:14:00+00:00
+**Last Updated**: 2026-05-09T14:17:00+00:00
 
 ---
 
@@ -15,7 +15,11 @@
 
 **Block 1 — Verify and materialize scaffold.** Check the `.claude/` tree (skill files, agents, hook scripts) is present. Create `wiki/`, `wiki/inbox/`, and copy `wiki/_templates/note.md` from the shipped distribution. Materialize `wiki/topic-index.md` from `.claude/skills/wiki-install/templates/topic-index.seed.md` with `<<CREATED_TS>>` / `<<UPDATED_TS>>` placeholders interpolated by `sed` so per-install timestamps differ. The seed ships with the piped form `[[Rules|Wiki Rules]]` (per [[piped-wiki-link-contract|Piped Wiki Link Contract]]) so freshly installed wikis are link-resolvable from turn 1.
 
-**Block 2 — Hook registration.** Upserts both Stop and UserPromptSubmit hook entries into `.claude/settings.json` via a single parametrized `jq` filter: idempotent remove-and-re-add. Uses `--arg` so the literal `$CLAUDE_PROJECT_DIR` token survives JSON encoding. Permissions, env vars, MCP servers, and unrelated hooks are preserved.
+**Block 2 — Hook registration + default permissions.** Upserts both Stop and UserPromptSubmit hook entries into `.claude/settings.json` via a single parametrized `jq` filter: idempotent remove-and-re-add. Uses `--arg` so the literal `$CLAUDE_PROJECT_DIR` token survives JSON encoding. Permissions, env vars, MCP servers, and unrelated hooks are preserved.
+
+The same block also seeds three default permissions — `Read`, `Edit`, and `Write` on `wiki/inbox/_session.md` — so the per-turn capture path does not prompt on every Stop-hook fire. **Case A (fresh `settings.json`)** writes the permissions block via heredoc as part of the canonical file. **Cases B/C (existing `settings.json`)** require `jq` and run an `upsert_permission` filter that only adds entries not already present, preserving any user-added permissions. A manual no-`jq` fallback is documented in `SETTINGS-SNIPPET.md`. The default-permissions detail is described as a standalone concept in [[install-default-permissions|Install Default Permissions]].
+
+**Block 5 reports a `(default perms)` summary row** alongside the hook merge result so the user can confirm the permissions seed succeeded.
 
 **Block 3 — `CLAUDE.md` integration.** Appends the canonical `## Auto-maintained wiki` section to `CLAUDE.md` (or creates the file) by reading `.claude/skills/wiki-install/templates/CLAUDE-MD-SECTION.md` directly. This template is the single source of truth shared with `/wiki-update` Step 6 — see [[install-template-files|Install Template Files]].
 
@@ -34,3 +38,5 @@
 - [[wiki-update-skill|Wiki Update Skill]]
 - [[update-flow|Update Flow]]
 - [[piped-wiki-link-contract|Piped Wiki Link Contract]]
+- [[install-default-permissions|Install Default Permissions]]
+- [[test-harness|Test Harness]]

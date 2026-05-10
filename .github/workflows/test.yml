@@ -1,0 +1,25 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  run-all:
+    name: tests/run-all.sh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Verify hook scripts are executable
+        run: |
+          chmod +x .claude/hooks/inbox-stop.sh .claude/hooks/recall-prompt.sh
+          chmod +x tests/run-all.sh tests/static.sh tests/hooks.sh tests/install-e2e.sh
+          chmod +x tests/lib/assert.sh tests/lib/extract-bash-blocks.sh
+
+      - name: Run all test layers
+        run: tests/run-all.sh

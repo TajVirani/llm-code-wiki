@@ -34,7 +34,7 @@ The author phase writes; the audit phase is informational. The skill itself does
 
 A cluster qualifies for module authoring iff ALL THREE signals pass. The signals are designed to identify **deep abstractions with narrow interfaces and rich implementations** (Ousterhout) — not just notes that share a name root.
 
-(Implementation note: the bash blocks below deliberately avoid `awk` — Claude Code's `!`-injection layer expands `$N` references in awk scripts to empty strings before the shell sees them, breaking field access. See `wiki/RESEARCH/skill-bash-injection-dollar-n-expansion.md`. All per-line slicing here uses `cut`/`sed`/`grep` + a `while read` loop instead.)
+(Implementation note: the bash blocks below deliberately avoid `awk` — Claude Code's `!`-injection layer expands `$N` references in awk scripts to empty strings before the shell sees them, breaking field access. See `wiki/RESEARCH/skill-bash-injection-dollar-n-expansion.md`. All per-line slicing here uses `cut`/`sed`/`grep` + a `while read` loop instead. Each `!`-injection MUST also stay on a single physical line — the harness mangles multi-line backtick blocks (the `done` ends up parsed as a fresh command on a separate eval line). Use `;` to separate statements; collapse `for/while/if … do … done` constructs onto one line. The `tests/static.sh` lint enforces both rules.)
 
 ### Signal 1 — Filename prefix (bootstrap)
 
@@ -44,13 +44,7 @@ Group detail-note basenames by their first kebab segment. A prefix with ≥3 not
 
 For each `prefix` reported above, list its members (the candidate children pool):
 
-!`for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt prefix; do
-  if [ "$cnt" -ge 3 ]; then
-    echo "## prefix=$prefix"
-    find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null | sort
-    echo
-  fi
-done`
+!`for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt prefix; do if [ "$cnt" -ge 3 ]; then echo "## prefix=$prefix"; find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null | sort; echo; fi; done`
 
 ### Signal 2 — Single dominant tag (cluster cohesion)
 
@@ -75,22 +69,7 @@ The intent: a module is known to the rest of the system. If nothing outside the 
 
 Compute via Bash — grep for piped wiki-links targeting cluster member basenames, exclude links sourced from inside the cluster itself:
 
-!`for prefix in $(for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt p; do [ "$cnt" -ge 3 ] && echo "$p"; done); do
-  members=$(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null)
-  member_basenames=$(echo "$members" | xargs -n1 basename 2>/dev/null | sed 's/\.md$//')
-  external_with_2plus=0
-  for ext in $(find wiki -type f -name '*.md' ! -path 'wiki/inbox/*' ! -path 'wiki/_templates/*' ! -path 'wiki/MODULES/*' 2>/dev/null); do
-    is_member=$(echo "$members" | grep -Fx "$ext")
-    if [ -n "$is_member" ]; then continue; fi
-    distinct_targets=0
-    for m in $member_basenames; do
-      hit=$(grep -cE "\[\[${m}(\||\])" "$ext" 2>/dev/null)
-      if [ "$hit" -gt 0 ]; then distinct_targets=$((distinct_targets + 1)); fi
-    done
-    if [ "$distinct_targets" -ge 2 ]; then external_with_2plus=$((external_with_2plus + 1)); fi
-  done
-  echo "prefix=$prefix external-fan-in-with-2-plus-distinct-targets=$external_with_2plus"
-done`
+!`for prefix in $(for f in $(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name '*.md' ! -name '_*' 2>/dev/null); do basename "$f" .md | cut -d- -f1; done | sort | uniq -c | sort -rn | sed -E 's/^[[:space:]]+//' | while read -r cnt p; do [ "$cnt" -ge 3 ] && echo "$p"; done); do members=$(find wiki/ARCHITECTURE wiki/FUNCTIONS wiki/RESEARCH wiki/DIAGRAMS -type f -name "${prefix}-*.md" 2>/dev/null); member_basenames=$(echo "$members" | xargs -n1 basename 2>/dev/null | sed 's/\.md$//'); external_with_2plus=0; for ext in $(find wiki -type f -name '*.md' ! -path 'wiki/inbox/*' ! -path 'wiki/_templates/*' ! -path 'wiki/MODULES/*' 2>/dev/null); do is_member=$(echo "$members" | grep -Fx "$ext"); if [ -n "$is_member" ]; then continue; fi; distinct_targets=0; for m in $member_basenames; do hit=$(grep -cE "\[\[${m}(\||\])" "$ext" 2>/dev/null); if [ "$hit" -gt 0 ]; then distinct_targets=$((distinct_targets + 1)); fi; done; if [ "$distinct_targets" -ge 2 ]; then external_with_2plus=$((external_with_2plus + 1)); fi; done; echo "prefix=$prefix external-fan-in-with-2-plus-distinct-targets=$external_with_2plus"; done`
 
 For each cluster: `S3: PASS (N external notes link to ≥2 cluster members)` if the count is ≥1; `S3: FAIL (no external note fans into ≥2 cluster members)` otherwise.
 

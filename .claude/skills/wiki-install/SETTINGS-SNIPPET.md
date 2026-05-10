@@ -1,6 +1,24 @@
-# settings.json — Stop Hook Entry (Manual Fallback)
+# settings.json — Manual Fallback (Hooks + Default Permissions)
 
-If `jq` is not installed and your project already has a `.claude/settings.json`, you can add the Stop hook entry manually.
+If `jq` is not installed and your project already has a `.claude/settings.json`, you can add the Stop hook, the UserPromptSubmit hook, and the default permissions manually.
+
+## Default permissions to add
+
+The auto-wiki capture path writes to `wiki/inbox/_session.md` after every Claude turn that produces a code change. To avoid a permission prompt on every write, add these to `.permissions.allow`:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Read(wiki/inbox/_session.md)",
+      "Edit(wiki/inbox/_session.md)",
+      "Write(wiki/inbox/_session.md)"
+    ]
+  }
+}
+```
+
+If you already have `permissions.allow`, append the three entries (skip any that are already there). If you don't have a `permissions` key at all, add the full block alongside `hooks`.
 
 ## The hook entry to add
 

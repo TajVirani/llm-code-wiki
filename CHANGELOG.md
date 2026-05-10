@@ -5,6 +5,34 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 The `Migration` subsection of each release lists anything `/wiki-update` cannot do for you — manual steps a consumer must take when upgrading past that version.
 
+## [1.3.2] — 2026-05-09
+
+### Fixed
+- **`/wiki-modules` aborted with `eval: line 13: syntax error near unexpected token \`done'`.** Two of the skill's `!`-injected backtick blocks (the prefix-cluster member listing and the Signal-3 external-fan-in computation) spanned multiple physical lines. Claude Code's skill harness mangles multi-line ` !\`...\` ` blocks — the trailing `done` lands on its own eval line with no matching `do`, and bash rejects it. Both blocks are now collapsed onto single lines using `;` separators; behavior is identical. Same kind of latent harness-fragility bug as the `!`-injection `$N` expansion bug fixed in 1.3.0 (both surface only when the skill actually executes, not from reading the source).
+
+### Added
+- **`tests/lib/extract-bang-blocks.sh`** — extracts `!`-injected backtick blocks from a SKILL.md (single-line and multi-line, indent-aware so it doesn't false-positive on mid-prose mentions of ` !`syntax` `).
+- **`tests/static.sh` lints `!`-injection blocks** — for every SKILL.md, runs `bash -n` on each extracted block AND rejects any block that spans more than one physical line. The multi-line lint is the defensive rule that would have caught `/wiki-modules` before a user did. Adds 3 PASS lines (one per skill that uses `!`-injection: wiki-code-crawler, wiki-digest, wiki-modules) → L1 grows from 55 → 58 checks.
+
+### Changed
+- **`/wiki-modules` implementation note expanded** — the existing "no `awk`" caveat now also documents the "no multi-line `!`-injection" rule, with a pointer to the `tests/static.sh` lint that enforces both.
+
+### Migration
+- **No manual migration required.** The fix activates the moment the new `wiki-modules/SKILL.md` lands via `/wiki-update`. Behavior of the cluster-detection signals is unchanged — only the bash literal layout differs.
+
+## [1.3.1] — 2026-05-09
+
+### Added
+- **Default permissions seeded into `.claude/settings.json` on install.** `/wiki-install` Block 2 and `/wiki-update` Step 5 now write `Read(wiki/inbox/_session.md)`, `Edit(wiki/inbox/_session.md)`, `Write(wiki/inbox/_session.md)` into `permissions.allow`. Without these, the auto-wiki capture path triggers a permission prompt every Stop-hook fire (i.e. after every code-edit turn). The fresh-create branch (Case A) writes the block via heredoc; the merge branch (Case B/C) runs an `upsert_permission` jq filter that skips entries already present and never removes user-added ones. `/wiki-update` backfills the same three entries on existing installs that pre-date this feature, also without disturbing user-added permissions. Manual no-jq fallback documented in `.claude/skills/wiki-install/SETTINGS-SNIPPET.md`.
+- **`tests/` shell-based test harness** — three layers, no Claude needed. `tests/static.sh` (L1) walks `dist-manifest.txt`, validates frontmatter on every SKILL.md and agent .md, runs `bash -n` on hooks plus every fenced ` ```bash ` block in every SKILL.md. `tests/hooks.sh` (L2) unit-tests both hook scripts with synthetic JSON input — covers `stop_hook_active`, kill switches, noop/artifact branches, brainstorm-fallback (uses `LCW_BRAINSTORM_TURNS=3` for speed), recall fire/noop/wiki-only/cooldown. `tests/install-e2e.sh` (L3) extracts the install/update bash blocks and runs them in tmpdir fixtures, asserting `settings.json` shape, idempotence, user-permission preservation, and the wiki-update Step-5 backfill path. `tests/run-all.sh` runs all three; supply layer names to run a subset. L3 skips cleanly when `jq` is missing.
+- **`.github/workflows/test.yml`** — runs `tests/run-all.sh` on push to main and on every pull request. Installs `jq` so L3 runs. Keeps the scaffold honest as it evolves.
+
+### Fixed
+- **`$CLAUDE_PROJECT_DIR` token verification was always failing on Case B/C of the settings.json merge.** `/wiki-install` Block 2 and `/wiki-update` Step 5 verify post-merge that the literal `$CLAUDE_PROJECT_DIR` token survived (i.e., wasn't shell-expanded into a hardcoded install-time path). The verification used `grep -q '"$CLAUDE_PROJECT_DIR"/...'` but jq writes the JSON value with the inner double-quotes serialized as `\"$CLAUDE_PROJECT_DIR\"`, so the unescaped pattern never matched and the merge aborted. Fixed by switching to `grep -qF '\"$CLAUDE_PROJECT_DIR\"/...'` to byte-match the JSON-escaped form. The L3 install-e2e harness caught this. Same flavor of latent bug as the `!`-injection `$N` expansion bug fixed in 1.3.0 — captured in the new `RESEARCH::jq-json-escape-grep-verification` inbox entry for the next `/wiki-digest` run.
+
+### Migration
+- **No manual migration required.** Existing installs gain the three default permission entries on the next `/wiki-update`; the merge skips entries already present, so re-runs converge to a zero-content-diff. The B3 verification fix activates the moment the new `/wiki-update` lands the new `wiki-install/SKILL.md` and `wiki-update/SKILL.md` files.
+
 ## [1.3.0] — 2026-05-09
 
 ### Added

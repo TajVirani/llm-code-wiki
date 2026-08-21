@@ -1,0 +1,23 @@
+{
+  "skill_name": "visual-change-report",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm on feat/event-driven-checkout and it's gotten huge \u2014 something like 300 files vs main. I need to walk the team through what actually changed in the system tomorrow. Build me the visual change report.",
+      "expected_output": "Single self-contained HTML report comparing current branch to merge-base with main, written into the branch's specification folder (discovered from spec-dir files in the diff or branch-name match), with before/after architecture diagram, 3-7 themed sections each with a visual, blast radius section, stats with noise disarmed, collapsed all-files appendix",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Make a change report for this branch, but against develop, not main. There's an existing mermaid diagram in docs/architecture.md \u2014 the report's diagrams should look like an evolution of that one, not a new invention.",
+      "expected_output": "Report using merge-base with develop as the base ref, whose before/after diagrams reuse node names and structure from the repo's own docs read at the base ref, saved to the branch's spec folder",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "this PR is mostly lockfile and generated churn but reviewers are freaking out about the file count. make something I can drop in the PR that shows what the real change is",
+      "expected_output": "Report that separates noise from substance, states the substantive change size explicitly, and keeps generated/lockfile files out of the narrative but present in the appendix",
+      "files": []
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUBJECT — Grilling State</title>
+<!--
+  Skeleton for temp/<task>-reference.html. One instance of every component.
+  Copy wholesale on first generation, then delete the components you don't need
+  and add sections the subject demands. Keep the :root palette and the class
+  names — consistency across regenerations is what makes the page refreshable.
+-->
+<style>
+  :root {
+    --bg: #f7f7f5; --surface: #ffffff;
+    --ink: #1a1a1a; --ink-soft: #555; --line: #ddd; --mono-bg: #eef0f2;
+    --green: #1a7f37; --green-bg: #e8f5ec;
+    --amber: #9a6700; --amber-bg: #fff8e5;
+    --red:   #c62828; --red-bg:   #fdeaea;
+    --blue:  #0b5cad; --blue-bg:  #e8f1fb;
+    --purple:#6b3fa0; --purple-bg:#f2ecfa;
+    --open-glow: 0 0 0 3px rgba(154,103,0,.25);
+    --closed-glow: 0 0 0 3px rgba(26,127,55,.2);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a; --surface: #1d2026;
+      --ink: #e6e6e3; --ink-soft: #a5a5a0; --line: #34383f; --mono-bg: #262a31;
+      --green: #4fbf6f; --green-bg: #16281c;
+      --amber: #e0a92e; --amber-bg: #2b2413;
+      --red:   #ef6b6b; --red-bg:   #2f1a1a;
+      --blue:  #6db1ec; --blue-bg:  #16232f;
+      --purple:#b18cf0; --purple-bg:#221a30;
+      --open-glow: 0 0 0 3px rgba(224,169,46,.3);
+      --closed-glow: 0 0 0 3px rgba(79,191,111,.22);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); padding:2rem 1.25rem 4rem;
+         font:15px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  main { max-width:1080px; margin:0 auto; }
+  h1 { font-size:1.65rem; margin:0 0 .25rem; letter-spacing:-.01em; }
+  h2 { font-size:1.15rem; margin:2.6rem 0 .8rem; border-bottom:1px solid var(--line); padding-bottom:.35rem; }
+  h3 { font-size:.95rem; margin:0 0 .5rem; }
+  p  { margin:.4rem 0; }
+  code, .mono { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.82em;
+                background:var(--mono-bg); padding:.08em .35em; border-radius:4px; white-space:nowrap; }
+  .meta { color:var(--ink-soft); font-size:.85rem; margin-bottom:1.6rem; }
+  .pill { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+          border-radius:999px; padding:.12rem .6rem; vertical-align:middle; }
+  .pill.green{color:var(--green);background:var(--green-bg)} .pill.amber{color:var(--amber);background:var(--amber-bg)}
+  .pill.red{color:var(--red);background:var(--red-bg)}       .pill.blue {color:var(--blue); background:var(--blue-bg)}
+  .pill.purple{color:var(--purple);background:var(--purple-bg)}
+
+  /* ---- OPEN NOW / SESSION CLOSED panel — the loudest thing on the page ---- */
+  .open-now { background:var(--amber-bg); border:2px solid var(--amber); border-radius:12px;
+              padding:1.4rem 1.5rem 1.5rem; box-shadow:var(--open-glow); margin:0 0 1rem; }
+  .open-now .kicker { font-size:.78rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+                      color:var(--amber); margin-bottom:.3rem; }
+  .open-now h2 { border:none; margin:0 0 .6rem; padding:0; font-size:1.45rem; }
+  .open-now.closed { background:var(--green-bg); border-color:var(--green); box-shadow:var(--closed-glow); }
+  .open-now.closed .kicker { color:var(--green); }
+  .options { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1.1rem; }
+  .options.three { grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+  @media (max-width:760px){ .options{grid-template-columns:1fr} }
+  .option { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:1rem 1.1rem; }
+  .option.rec { border-color:var(--green); }
+  .option ul { margin:.5rem 0 0; padding-left:1.15rem; } .option li { margin:.3rem 0; }
+  .option p  { font-size:.87rem; }
+  .pro::marker { color:var(--green); } .con::marker { color:var(--red); }
+  .untouched { display:block; margin-top:.5rem; font-size:.8rem; color:var(--ink-soft); }
+  .ask { margin-top:1rem; padding:.85rem 1rem; border-radius:10px; background:var(--surface);
+         border:2px solid var(--amber); font-size:1rem; font-weight:650; }
+  .nextstep { margin-top:1rem; padding:.8rem 1rem; border-radius:10px; background:var(--surface);
+              border:1px dashed var(--green); font-size:.88rem; }
+
+  /* ---- pipeline / flow diagram (pure CSS, no library) ---- */
+  .pipe { display:flex; flex-wrap:wrap; align-items:stretch; gap:.5rem; margin:1rem 0 .5rem; }
+  .stage { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:.55rem .7rem;
+           flex:1 1 150px; min-width:150px; font-size:.82rem; }
+  .stage .t { font-weight:700; font-size:.84rem; display:block; margin-bottom:.2rem; }
+  .stage .d { color:var(--ink-soft); }
+  .stage .nid { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.72rem;
+                color:var(--blue); font-weight:700; margin-right:.3rem; }
+  .stage.new  { border:2px dashed var(--green); } .stage.new .t  { color:var(--green); }
+  .stage.mod  { border-left:4px solid var(--amber); }
+  .stage.kill { background:var(--red-bg); border:2px solid var(--red); } .stage.kill .t { color:var(--red); }
+  .badge { display:inline-block; font-size:.6rem; font-weight:800; letter-spacing:.07em; text-transform:uppercase;
+           border-radius:4px; padding:.06rem .32rem; margin-left:.35rem; vertical-align:middle; }
+  .badge.new{color:var(--green);background:var(--green-bg)} .badge.mod{color:var(--amber);background:var(--amber-bg)}
+  .arrow { align-self:center; color:var(--ink-soft); font-size:1.1rem; flex:0 0 auto; }
+  .pipe.small .stage { flex-basis:130px; min-width:130px; font-size:.78rem; }
+  .strip-label { font-size:.8rem; color:var(--ink-soft); margin-top:1.2rem; font-weight:600;
+                 text-transform:uppercase; letter-spacing:.05em; }
+  .legend { font-size:.78rem; color:var(--ink-soft); margin-top:.4rem; }
+  .legend .badge { margin-left:0; margin-right:.2rem; }
+
+  /* ---- tiles / cards ---- */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:.9rem; margin-top:1rem; }
+  .tile  { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:.9rem 1rem; font-size:.87rem; }
+  .tile b { display:block; margin-bottom:.3rem; }
+  .tile.fixed { border-color:var(--green); border-width:1.5px; } .tile.fixed b { color:var(--green); }
+  .tile .was  { display:block; font-size:.8rem; color:var(--ink-soft); font-style:italic; margin-bottom:.35rem; }
+
+  /* ---- tables ---- */
+  table { border-collapse:collapse; width:100%; margin-top:.8rem; font-size:.86rem; }
+  th, td { text-align:left; padding:.5rem .65rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); }
+  .tbl-wrap { overflow-x:auto; }
+  table.anchored td:first-child { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+                                  font-weight:700; color:var(--blue); white-space:nowrap; }
+
+  /* ---- callouts ---- */
+  .callout { border-radius:10px; padding:.95rem 1.1rem; margin:.8rem 0; font-size:.9rem; border:1px solid; }
+  .callout.amber{background:var(--amber-bg);border-color:var(--amber)}
+  .callout.red  {background:var(--red-bg);  border-color:var(--red)}
+  .callout.note {background:var(--surface); border-color:var(--blue)}
+  .callout.resolved  { background:var(--surface); border-color:var(--green); opacity:.85; }
+  .callout.dissolved { background:var(--surface); border-color:var(--line); color:var(--ink-soft); }
+  .callout b.head { display:block; margin-bottom:.3rem; }
+
+  /* ---- decision ledger ---- */
+  .ledger { list-style:none; padding:0; margin:.8rem 0 0; }
+  .ledger li { background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--green);
+               border-radius:8px; padding:.7rem .95rem; margin:.55rem 0; font-size:.88rem; }
+  .ledger li.superseded { border-left-color:var(--ink-soft); opacity:.7; }
+  .ledger li.superseded .did { text-decoration:line-through; }
+  .ledger .did { font-weight:800; margin-right:.45rem; color:var(--blue); }
+  .ledger .why { display:block; margin-top:.3rem; color:var(--ink-soft); }
+
+  /* ---- quotes — the user's own words, verbatim ---- */
+  blockquote { margin:.7rem 0; padding:.7rem 1rem; border-left:3px solid var(--blue);
+               background:var(--surface); border-radius:0 8px 8px 0; font-size:.9rem; }
+  blockquote .who { display:block; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em;
+                    color:var(--ink-soft); margin-bottom:.25rem; font-weight:700; }
+
+  /* ---- question queue ---- */
+  .queue { list-style:none; padding:0; margin:.8rem 0 0; }
+  .queue li { background:var(--surface); border:1px solid var(--line); border-radius:8px;
+              padding:.65rem .9rem; margin:.5rem 0; font-size:.88rem; }
+  .queue .qid { font-weight:800; margin-right:.45rem; color:var(--purple); }
+  .queue li.blocked { opacity:.65; border-style:dashed; }
+
+  /* ---- long lists scroll, they never truncate ---- */
+  .scroll { max-height:460px; overflow-y:auto; border:1px solid var(--line); border-radius:10px; padding:.2rem .9rem; }
+
+  footer { margin-top:3.5rem; color:var(--ink-soft); font-size:.78rem; border-top:1px solid var(--line); padding-top:.8rem; }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- 1 · MASTHEAD -->
+  <h1>SUBJECT — Grilling State</h1>
+  <p class="meta">DATE &nbsp;·&nbsp; Q6 open &nbsp;·&nbsp; D1–D9 decided &nbsp;·&nbsp; 3 gaps flagged</p>
+
+  <!-- 2 · THE OPEN QUESTION — above the fold, loudest element.
+          On session close, swap to <div class="open-now closed"> and summarise instead. -->
+  <div class="open-now">
+    <p class="kicker">◉ Open question — awaiting you</p>
+    <h2>Q6 — The question as a headline</h2>
+    <p>Why it is being asked <em>now</em>, and which earlier decision forced it.</p>
+
+    <div class="options">
+      <div class="option">
+        <h3>A · Names the concrete thing <span class="pill blue">cheaper</span></h3>
+        <p>What it does, in the system's own nouns — real tables, real paths, real numbers.</p>
+        <ul>
+          <li class="pro">Concrete upside.</li>
+          <li class="con">Concrete cost.</li>
+        </ul>
+        <span class="untouched">Does not touch: <code>the_other_thing</code>.</span>
+      </div>
+      <div class="option rec">
+        <h3>B · The other one <span class="pill green">recommended</span></h3>
+        <p>Same treatment. The recommendation is marked, and the reason is stated.</p>
+        <ul>
+          <li class="pro">Concrete upside.</li>
+          <li class="con">Concrete cost.</li>
+        </ul>
+        <span class="untouched">Does not touch: <code>the_other_thing</code>.</span>
+      </div>
+    </div>
+
+    <p class="ask">The one sentence you want answered — worded exactly as it was asked in the terminal.</p>
+  </div>
+
+  <!-- 3 · JUST CLOSED — what the previous answer settled -->
+  <div class="callout resolved">
+    <b class="head">✔ Just closed — Q5</b>
+    One or two lines on what the last answer settled, so a misheard answer is caught immediately.
+  </div>
+
+  <!-- 4 · DECISION LEDGER -->
+  <h2>Decision ledger</h2>
+  <ol class="ledger">
+    <li><span class="did">D1</span> The decision, stated flatly.
+        <span class="why">The reasoning that produced it.</span></li>
+    <li class="superseded"><span class="did">D2</span> A decision that was later reversed.
+        <span class="why">Superseded by D7 — kept because the reversal is itself a finding.</span></li>
+  </ol>
+
+  <!-- 5 · MEASURED SYSTEM FACTS — each checkable at the cited site -->
+  <h2>Measured system facts</h2>
+  <div class="tbl-wrap">
+    <table class="anchored">
+      <thead><tr><th>Anchor</th><th>Fact</th><th>Why it matters</th></tr></thead>
+      <tbody>
+        <tr><td>src/foo.ts:142</td><td>The measured fact.</td><td>Which decision rests on it.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- OPTIONAL · flow diagram, when the subject is a pipeline -->
+  <p class="strip-label">Proposed flow</p>
+  <div class="pipe">
+    <div class="stage"><span class="t"><span class="nid">N10</span>Existing</span><span class="d">unchanged</span></div>
+    <span class="arrow">→</span>
+    <div class="stage new"><span class="t"><span class="nid">N11</span>New<span class="badge new">new</span></span><span class="d">what it adds</span></div>
+    <span class="arrow">→</span>
+    <div class="stage mod"><span class="t"><span class="nid">N12</span>Changed<span class="badge mod">mod</span></span><span class="d">what changes</span></div>
+  </div>
+  <p class="legend"><span class="badge new">new</span> added · <span class="badge mod">mod</span> modified</p>
+
+  <!-- 6 · OPEN GAPS -->
+  <h2>Open gaps</h2>
+  <div class="callout amber">
+    <b class="head">Gap — the unresolved thing</b>
+    What is unknown, or where the user's account and the code disagree.
+  </div>
+
+  <!-- 7 · QUESTION QUEUE — dependency order, none of it asked yet -->
+  <h2>Question queue <span class="pill purple">not yet asked</span></h2>
+  <ol class="queue">
+    <li><span class="qid">Q7</span> The next question.</li>
+    <li class="blocked"><span class="qid">Q8</span> Blocked until Q7 lands.</li>
+  </ol>
+
+  <footer>Regenerated after every question · overwrite this same path · refresh to update</footer>
+</main>
+</body>
+</html>

@@ -97,7 +97,7 @@ If `disableSkillShellExecution` is set on this Claude Code instance, the bash in
 
 Per the frontmatter `context: fork` + `agent: wiki-curator`, this skill body is delivered to a forked wiki-curator subagent in a fresh context. The curator follows its protocol (defined in `.claude/agents/wiki-curator.md`), producing:
 
-1. A markdown plan listing every CREATE / EDIT / SPLIT / OVERRIDE / RULES-PROPOSAL / ALERT / CONFLICT-ON-RESEARCH / MODULES-VIA-DIGEST-DEPRECATED row, grouped by source (session inbox vs each research-doc filename).
+1. A markdown plan listing every CREATE / EDIT / NO-OP / SPLIT / OVERRIDE / RULES-PROPOSAL / ALERT / CONFLICT-ON-RESEARCH / MODULES-VIA-DIGEST-DEPRECATED row, grouped by source (session inbox vs each research-doc filename).
 2. A validation result against Rules.md.
 3. Interactive resolution for any CONFLICT-ON-RESEARCH rows (Step 7a in the curator) — for each research-doc concept that collides with an existing `wiki/RESEARCH/` note, the curator surfaces both the existing content and the proposed content and waits for the user's instructions before any write to `wiki/RESEARCH/`.
 4. The applied changes (writes / edits to `wiki/<CATEGORY>/<slug>.md`).
@@ -109,7 +109,7 @@ Restated reminders to the curator (these are also in its system prompt — liste
 
 - **Two source types:** the curator now handles BOTH handle-line entries from the session inbox AND free-prose research docs from `wiki/inbox/*.md` (excluding `_session.md` and underscore-prefixed files). Free-prose docs require the curator to derive {slug, title, category, tags, summary} per concept by applying Rules.md §6 (read in full → decide single or multi-concept → draft template).
 - **DIGS-08 + D-05 + D-06 + D-07 (splits + backlinks):** When splitting a note, grep `wiki/**/*.md` for inbound links to the old slug — `[[old-slug|...]]` (the canonical piped form per Rules.md §7) plus any legacy bare `[[Old Title]]` references. For EACH inbound link, choose the most relevant split target based on the surrounding sentence and the section heading the link sits under. Rewrite in place to `[[new-slug|Display Title]]`. The display title (the part after `|`) is preserved verbatim if the original link had one (D-07); otherwise derive it from the new split's H1. Report as ONE summary line in the plan.
-- **DIGS-09 + D-04 (existing-note conflict):** Same-concept detection by filename + title + tag overlap. NEVER use embeddings (anti-feature A10). 2+ matching signals → EDIT existing note (bump Last Updated). 0–1 → CREATE new.
+- **DIGS-09 + D-04 (existing-note conflict):** Same-concept detection by filename + title + tag overlap. NEVER use embeddings (anti-feature A10). 2+ matching signals → EDIT *candidate*; then run the **Step 3 NO-OP gate** — if the new body adds no material content over the existing Content section (state-mirror paraphrase / duplicate), emit a `NO-OP` row instead of EDIT (no write, no Last Updated bump). Only emit EDIT when the change is material. 0–1 → CREATE new.
 - **D-19 RESEARCH/ write-protection branches by source:** Session-inbox handle-line entries that hit `wiki/RESEARCH/` still emit ALERT rows (read-only path preserved). Research-doc concepts that hit `wiki/RESEARCH/` emit CONFLICT-ON-RESEARCH rows and trigger Step 7a interactive resolution — any write to `wiki/RESEARCH/` is authorized by the user's typed instructions, never by automatic plan approval.
 - **DIGS-13 + D-16:** Curator NEVER writes to `wiki/Rules.md`. Rule-change suggestions surface as RULES-PROPOSAL rows for the user to apply manually.
 - **Path safety:** Every write target must be under `wiki/`. Denylist: `wiki/Rules.md`, `wiki/_templates/**`, `wiki/MODULES/**` (the orientation layer is owned by `/wiki-modules` per ADR 0001). Reject any plan row violating this.
@@ -188,6 +188,7 @@ Final output to the user:
 
 **Notes created:** <list, grouped by source>
 **Notes edited:** <list, grouped by source>
+**Same-concept matches with no material change (NO-OP, no write, Last Updated NOT bumped):** <list, grouped by source, or "none">
 **Splits performed:** <list with backlink rewrite counts>
 **Overrides applied:** <list of FUNCTIONS→ARCHITECTURE etc. with reasons>
 **ALERT (session-inbox vs read-only RESEARCH/, no write):** <list, or "none">

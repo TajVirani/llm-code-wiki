@@ -96,9 +96,19 @@ All curator routes are `{ARCHITECTURE, FUNCTIONS, RESEARCH, SELF, DIAGRAMS}` —
 2. Title match: read the H1 of any candidate file; compare to the entry's slug-as-title.
 3. Tag overlap: 2+ shared tags between the entry's `#tags` and the candidate note's `**Tags**:` line.
 
-If 2+ of these signals match: this is an EDIT, not a CREATE. Bump `Last Updated`. Do NOT create `<slug>-v2.md` or `<slug>-update.md` — that violates Rules.md §5 and Pitfall 9.
+If 2+ of these signals match: this is an EDIT candidate (not a CREATE). Do NOT create `<slug>-v2.md` or `<slug>-update.md` — that violates Rules.md §5 and Pitfall 9. Before finalizing as EDIT, run the NO-OP gate below.
 
 If 0–1 signals match: this is a CREATE.
+
+**NO-OP gate for EDIT candidates (mitigates state-mirror inbox noise).** `wiki/inbox/_session.md` is a state-of-the-world mirror per the `inbox-update` skill — it routinely re-emits handle-line entries describing already-filed notes. Bumping `Last Updated` on those produces a noisy git diff where the only change is a timestamp. Before finalizing an EDIT row:
+
+1. Read the existing target note's `## Content` section verbatim.
+2. Draft the Content section the EDIT would produce by integrating the new entry/concept body.
+3. Compare:
+   - **Every fact, claim, link, and code reference in the draft is already present in the existing Content section** (the new body is a paraphrase, restatement, or near-duplicate of what's already filed) → emit a `NO-OP` row instead of `EDIT`. Do NOT write to the file. Do NOT bump `Last Updated`. Do NOT touch the topic-index for this row.
+   - **The draft would add, remove, or correct material content** (a new fact, a fixed claim, a new wiki-link, an updated invariant, a new related-note) → the EDIT row stands. Bump `Last Updated`. Proceed normally.
+
+Be honest with yourself: cosmetic rewording of an existing sentence is NOT a material change. Only emit EDIT when the wiki note would carry information it does not carry today. When in doubt, prefer NO-OP — the entry is preserved in the digest archive (Step 2 of the wiki-digest skill body), so nothing is lost.
 
 (MODULES is not a curator route per ADR 0001. `/wiki-modules` owns same-concept handling for MODULES — for that path, the slug-from-cluster-prefix is the canonical identifier and re-authoring is overwrite-by-design.)
 
@@ -137,7 +147,8 @@ Row table format:
 | Action | Slug / Path | Category | Notes |
 |--------|-------------|----------|-------|
 | CREATE | `wiki/FUNCTIONS/<slug>.md` | FUNCTIONS | New note. |
-| EDIT | `wiki/FUNCTIONS/<slug>.md` | FUNCTIONS | Bump Last Updated. |
+| EDIT | `wiki/FUNCTIONS/<slug>.md` | FUNCTIONS | Bump Last Updated. Material content change. |
+| NO-OP | `wiki/FUNCTIONS/<slug>.md` | FUNCTIONS | Same-concept match but new body is a paraphrase/duplicate of existing Content. No write. Last Updated unchanged. (Step 3 NO-OP gate fired.) |
 | SPLIT | `<old> → <new1>, <new2>, <new3>` | FUNCTIONS | Inbound `[[X]]` rewrites: N across M files. |
 | OVERRIDE | (entry slug) | (new category) | Reason. (session-inbox only — no OVERRIDE rows from research docs) |
 | RULES-PROPOSAL | (text) | — | "Suggest adding category X" — for user to apply manually. |
@@ -147,11 +158,12 @@ Row table format:
 
 Approving the plan as a whole authorizes every CREATE / EDIT / SPLIT / OVERRIDE row (D-03). A single plan-level approval covers all of those rows — never ask the user to confirm individual entries one at a time.
 
-**CONFLICT-ON-RESEARCH and MODULES-VIA-DIGEST-DEPRECATED rows are NOT covered by plan-level approval.** They are surface-only:
+**NO-OP, CONFLICT-ON-RESEARCH, and MODULES-VIA-DIGEST-DEPRECATED rows are NOT covered by plan-level approval.** They are surface-only:
+- NO-OP is the curator's own decision and performs no writes — plan approval is irrelevant. The row exists so the user can see *which* state-mirror entries matched existing notes without producing real changes.
 - CONFLICT-ON-RESEARCH requires explicit per-conflict instructions in Step 7a before any write to `wiki/RESEARCH/`.
 - MODULES-VIA-DIGEST-DEPRECATED is informational — the curator never writes MODULES. The user runs `/wiki-modules` to refresh the orientation layer.
 
-State this clearly at the bottom of the plan: "Plan approval applies to CREATE/EDIT/SPLIT/OVERRIDE rows. CONFLICT-ON-RESEARCH rows will prompt for per-conflict instructions after approval. MODULES-VIA-DIGEST-DEPRECATED rows are informational — run `/wiki-modules` to author module notes."
+State this clearly at the bottom of the plan: "Plan approval applies to CREATE/EDIT/SPLIT/OVERRIDE rows. NO-OP rows are informational — no write performed. CONFLICT-ON-RESEARCH rows will prompt for per-conflict instructions after approval. MODULES-VIA-DIGEST-DEPRECATED rows are informational — run `/wiki-modules` to author module notes."
 
 ### Step 6 — Validate the plan against Rules.md (DIGS-05, DIGS-06, DIGS-07)
 
@@ -171,7 +183,8 @@ If any row fails validation: report the failure in the plan output and HALT befo
 
 For each row (except CONFLICT-ON-RESEARCH, which goes to Step 7a):
 - CREATE: emit a new file matching the entry's chosen template (`note.md` by default; specialized template if Step 2c set one). All templates share the outer frontmatter schema (Summary, Tags, Created, Last Updated, ## Content, ## Related Notes); only the inside of `## Content` differs by template. Created = now (ISO-8601). Last Updated = same.
-- EDIT: read the existing note, patch its Content section as needed, update Last Updated. Created field is immutable. **Do NOT apply EDIT to any file under `wiki/RESEARCH/` — those are ALERT or CONFLICT-ON-RESEARCH rows, not EDIT rows (D-19).**
+- EDIT: read the existing note, patch its Content section with the new material, **bump `Last Updated` to now (ISO-8601)**. Created field is immutable. **Only apply EDIT when the Step 3 NO-OP gate decided the change is material — otherwise the row should already have been emitted as NO-OP.** **Do NOT apply EDIT to any file under `wiki/RESEARCH/` — those are ALERT or CONFLICT-ON-RESEARCH rows, not EDIT rows (D-19).**
+- NO-OP: do nothing in the wiki. The target note is left exactly as it was — Content, Last Updated, Tags, and Summary all unchanged. Surface the row in the digest summary so the user can see *which* state-mirror entries matched existing notes without producing real changes. This is the discipline introduced to fix the "every file gets a Last Updated bump on every digest" bug (curator Step 3 NO-OP gate).
 - SPLIT: write the new files; update inbound links to the old slug per Step 4's per-backlink decisions (`[[old-slug|...]]` → `[[new-slug|...]]`). **Do NOT apply SPLIT to any file under `wiki/RESEARCH/` (D-19). Do NOT rewrite backlinks inside `wiki/RESEARCH/` files — leave them as-is and surface in Step 8 audit.**
 - OVERRIDE: write to the OVERRIDDEN category, not the original.
 - RULES-PROPOSAL: do nothing in the wiki. The proposal stays in the plan output for the user.
@@ -254,13 +267,15 @@ For each note **created** in this digest run (CREATE row, route ∈ {ARCHITECTUR
 
 For each note **edited** in this digest run (EDIT row): no index change unless the edit added or removed primary tags. If tags changed, update the topic mapping accordingly.
 
+For each NO-OP row in this digest run: no index change. The note was not touched; its tags and content are unchanged.
+
 For each note **split** in this digest run (SPLIT row): replace the old path in any `Files:` list with the new split paths, deduped.
 
 For any note **deprecated** (Tags now contain `#deprecated` and a non-deprecated alternative is also indexed): remove the deprecated path from `Files:` lists. If a topic bullet under `### Notes` ends up with zero files, remove the bullet.
 
 Final touches:
 - Keep bullets alphabetized by topic name (ASCII sort) within `### Notes` for stable diffs across digests.
-- Bump the `**Last Updated**:` field at the top of `topic-index.md` to the current ISO-8601 timestamp.
+- Bump the `**Last Updated**:` field at the top of `topic-index.md` to the current ISO-8601 timestamp **only if this step actually wrote bullet changes** (any CREATE, SPLIT, tag-changed EDIT, or deprecation). If every plan row was NO-OP / ALERT / CONFLICT-ON-RESEARCH / MODULES-VIA-DIGEST-DEPRECATED, leave `topic-index.md` untouched (including its `Last Updated`). This preserves stable diffs when the digest had no material effect.
 - Cap: ≤ 100 bullets total across both sections combined. If exceeded, surface a RULES-PROPOSAL row in the digest summary suggesting a further split (e.g., split `### Notes` by category) — do not auto-split.
 - Do NOT touch unrelated bullets in this update — only the rows affected by this digest's writes. Stable diff matters.
 - Do NOT touch the `### Modules` section, its bullets, or its surrounding whitespace. If the `### Modules` H3 does not exist yet, do NOT create it — `/wiki-modules` does that on first MODULES write.
@@ -320,6 +335,17 @@ Good (route stays as-is, silent):
 Good (override surfaced):
   Handle: `@ FUNCTIONS::auth-boundary-policy`, body describes a system-level trust boundary spanning services. Route: ARCHITECTURE. Plan line: "OVERRIDE: handle FUNCTIONS → ARCHITECTURE: content describes an inter-service trust boundary, not a single function."
 
+## NO-OP examples (Step 3 NO-OP gate)
+
+Good (NO-OP — state-mirror duplicate):
+  Handle: `@ FUNCTIONS::inbox-stop-hook`, body restates the hook's purpose, fire counter location, and kill-switch path. Existing `wiki/FUNCTIONS/inbox-stop-hook.md` already covers all three facts. Plan row: `NO-OP | wiki/FUNCTIONS/inbox-stop-hook.md | FUNCTIONS | Same-concept match; body is a paraphrase of existing Content.` No write. Last Updated unchanged.
+
+Good (EDIT — material addition):
+  Handle: `@ FUNCTIONS::inbox-stop-hook`, body mentions a NEW outcome string `turncount-pending-reset-on-session-change` that does not appear in the existing note. The fact is material — emit EDIT, patch the Content section to add it, bump Last Updated.
+
+Bad (would-be regression — do not do this):
+  Handle matches an existing note. The new body is identical-ish to existing Content. Curator emits EDIT and bumps Last Updated. This produces the noisy timestamp diff the NO-OP gate exists to prevent. If the only change between proposed and existing Content is cosmetic rewording, the row is NO-OP, not EDIT.
+
 ## Research-doc decomposition examples
 
 Single-concept research doc (within 1,000 words):
@@ -351,6 +377,7 @@ If the wiki-digest skill cannot fork (`CLAUDE_CODE_FORK_SUBAGENT=0`), the wiki-d
 - You do not invent new templates beyond what exists in `wiki/_templates/`. If a trigger from Rules.md §12 doesn't match cleanly, fall back to `note.md` rather than improvising a new scaffold. New templates require a Rules.md §12 amendment in the same change.
 - You do not use embeddings or semantic similarity for duplicate detection (anti-feature A10). Filename + title + tag overlap only. No embeddings.
 - You do not skip routing on disagreement (D-02). You always pick a route — for session-inbox entries via OVERRIDE if needed, for research-doc concepts via your category pick from the doc body.
+- You do not bump `Last Updated` on an EDIT whose new Content would be a paraphrase or duplicate of the existing Content. That case is a NO-OP per Step 3's NO-OP gate. The state-mirror inbox routinely produces same-concept matches that carry no new information; treating those as EDITs produces a noisy git history where the only change per file is a timestamp. NO-OP rows are surfaced in the digest summary so the user can see which entries matched existing notes without producing writes.
 - You do not auto-EDIT or auto-SPLIT files under `wiki/RESEARCH/` (D-19). RESEARCH/ is read-only via the automatic path. Behavior branches by source:
   - Session-inbox same-concept hit on RESEARCH/ → emit ALERT row, route entry to handle's original category, never write to RESEARCH/.
   - Research-doc same-concept hit on RESEARCH/ → emit CONFLICT-ON-RESEARCH row, defer to Step 7a interactive resolution. Any write to RESEARCH/ is authorized by the user's typed instruction in Step 7a, never by automatic plan approval.

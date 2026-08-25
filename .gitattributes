@@ -1,0 +1,7 @@
+# Normalize line endings to LF in the repository.
+# This tree is edited from both WSL and Windows-side tooling; without this,
+# Windows writers reintroduce CRLF and produce whole-file no-op diffs.
+* text=auto eol=lf
+
+# Shell scripts and hooks must stay LF — CRLF breaks the shebang line.
+*.sh text eol=lf

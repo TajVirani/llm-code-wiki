@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Change Report — {{REPO_NAME}} — {{BASE_SHORT}}..{{HEAD_SHORT}}</title>
+<!--
+  TEMPLATE USAGE
+  - Replace every {{TOKEN}}.
+  - Duplicate the <section class="theme"> block once per theme.
+  - Every mermaid diagram goes inside: <div class="diagram"><pre class="mermaid">...</pre></div>
+    If the Mermaid CDN is unreachable, the source stays visible as a readable code block.
+  - Delta colors are fixed tokens below. Do not repurpose them for non-delta meaning.
+-->
+<style>
+  :root{
+    --paper:#f6f8fa; --card:#ffffff; --ink:#17242e; --ink-soft:#51606c;
+    --line:#dbe3ea; --line-strong:#b9c6d1; --cobalt:#245a9e;
+    --add:#1a7f4b; --add-bg:#e6f4ec; --mod:#b87908; --mod-bg:#fdf3e1;
+    --rem:#b3313c; --rem-bg:#fbe9eb; --ghost:#8b98a3; --ghost-bg:#eef1f4;
+    --mono:ui-monospace,'SF Mono','Cascadia Code','JetBrains Mono',Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font:16px/1.65 var(--sans);padding-bottom:6rem}
+  .wrap{max-width:980px;margin:0 auto;padding:0 1.25rem}
+
+  /* ---- header: the ref strip ---- */
+  header{background:var(--ink);color:#e8eef3;padding:2.2rem 0 1.8rem;border-bottom:4px solid var(--cobalt)}
+  header .eyebrow{font:600 .72rem/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:#9db4c6}
+  header h1{font-size:1.7rem;font-weight:650;letter-spacing:-.01em;margin:.5rem 0 .9rem}
+  .refstrip{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;font:500 .82rem var(--mono)}
+  .refstrip .ref{background:#243441;border:1px solid #3a4d5c;border-radius:6px;padding:.28rem .6rem}
+  .refstrip .arrow{color:#7f95a6}
+  .headline-stats{display:flex;gap:1.6rem;flex-wrap:wrap;margin-top:1.1rem;font-size:.86rem;color:#c3d2dd}
+  .headline-stats b{color:#fff;font-family:var(--mono);font-size:1rem}
+  .plus{color:#6fcf97}.minus{color:#f0868f}
+
+  /* ---- nav ---- */
+  nav{position:sticky;top:0;z-index:5;background:rgba(246,248,250,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;gap:1.4rem;overflow-x:auto;padding-top:.6rem;padding-bottom:.6rem}
+  nav a{font:600 .78rem var(--mono);letter-spacing:.04em;color:var(--ink-soft);text-decoration:none;white-space:nowrap}
+  nav a:hover{color:var(--cobalt)}
+
+  /* ---- legend ---- */
+  .legend{display:flex;gap:.55rem;flex-wrap:wrap;margin:1.4rem 0 0}
+  .chip{display:inline-flex;align-items:center;gap:.42rem;font:600 .74rem var(--mono);padding:.24rem .62rem;border-radius:999px;border:1px solid}
+  .chip i{width:.62rem;height:.62rem;border-radius:2px;display:inline-block}
+  .chip.add{color:var(--add);background:var(--add-bg);border-color:var(--add)} .chip.add i{background:var(--add)}
+  .chip.mod{color:var(--mod);background:var(--mod-bg);border-color:var(--mod)} .chip.mod i{background:var(--mod)}
+  .chip.rem{color:var(--rem);background:var(--rem-bg);border-color:var(--rem)} .chip.rem i{background:var(--rem)}
+  .chip.gho{color:var(--ghost);background:var(--ghost-bg);border-color:var(--ghost)} .chip.gho i{background:var(--ghost)}
+
+  /* ---- sections ---- */
+  section{margin-top:2.6rem}
+  .kicker{font:600 .72rem/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--cobalt)}
+  section>h2{font-size:1.32rem;font-weight:650;letter-spacing:-.01em;margin:.35rem 0 .8rem}
+  section>p, .theme-body>p{max-width:70ch;color:#2b3a45}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1.3rem 1.4rem;margin-top:1rem}
+
+  .exec li{margin:.55rem 0 .55rem 1.2rem;max-width:75ch}
+  .exec li::marker{color:var(--cobalt);font-weight:700}
+  .why{color:var(--ink-soft)}
+
+  .diagram{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem;margin-top:1rem;overflow-x:auto}
+  .diagram .caption{font:600 .76rem var(--mono);color:var(--ink-soft);letter-spacing:.03em;margin-bottom:.6rem}
+  pre.mermaid{font:.78rem/1.5 var(--mono);color:var(--ink-soft)} /* readable if CDN fails */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+  .split .diagram{margin-top:0}
+  @media(max-width:760px){.split{grid-template-columns:1fr}}
+
+  /* ---- bars ---- */
+  .bars{display:grid;gap:.55rem;margin-top:.9rem}
+  .bar-row{display:grid;grid-template-columns:170px 1fr 110px;align-items:center;gap:.8rem;font:500 .8rem var(--mono)}
+  .bar-row .track{background:var(--ghost-bg);border-radius:4px;height:14px;overflow:hidden;display:flex}
+  .bar-row .fill-add{background:var(--add);height:100%}
+  .bar-row .fill-del{background:var(--rem);height:100%}
+  .bar-row .nums{color:var(--ink-soft);text-align:right}
+  .composition{display:flex;height:22px;border-radius:6px;overflow:hidden;margin-top:.9rem;border:1px solid var(--line)}
+  .composition div{height:100%}
+  .comp-key{display:flex;gap:1.1rem;flex-wrap:wrap;margin-top:.55rem;font:500 .74rem var(--mono);color:var(--ink-soft)}
+  .comp-key i{width:.7rem;height:.7rem;border-radius:2px;display:inline-block;margin-right:.3rem;vertical-align:-1px}
+
+  /* ---- tables ---- */
+  table{border-collapse:collapse;width:100%;font-size:.84rem;margin-top:.9rem;background:var(--card)}
+  th{font:600 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);text-align:left}
+  th,td{border:1px solid var(--line);padding:.5rem .7rem;vertical-align:top}
+  td.mono, .mono{font-family:var(--mono);font-size:.78rem}
+  tr.f-add td:first-child{box-shadow:inset 3px 0 0 var(--add)}
+  tr.f-mod td:first-child{box-shadow:inset 3px 0 0 var(--mod)}
+  tr.f-rem td:first-child{box-shadow:inset 3px 0 0 var(--rem)}
+  .status{font:600 .68rem var(--mono);padding:.12rem .5rem;border-radius:999px;white-space:nowrap}
+  .status.add{color:var(--add);background:var(--add-bg)} .status.mod{color:var(--mod);background:var(--mod-bg)}
+  .status.rem{color:var(--rem);background:var(--rem-bg)} .status.ren{color:var(--cobalt);background:#e7eef8}
+
+  details{margin-top:1rem;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+  details summary{cursor:pointer;padding:.9rem 1.2rem;font:600 .85rem var(--sans);color:var(--ink)}
+  details[open] summary{border-bottom:1px solid var(--line)}
+  details .inner{padding:1rem 1.2rem}
+
+  footer{margin-top:3.5rem;border-top:1px solid var(--line);padding-top:1rem;font:500 .74rem var(--mono);color:var(--ink-soft)}
+
+  @media print{
+    nav{display:none} header{background:#fff;color:var(--ink);border-bottom:2px solid var(--ink)}
+    header .eyebrow,.headline-stats{color:var(--ink-soft)} .headline-stats b{color:var(--ink)}
+    .refstrip .ref{background:#fff;border-color:var(--line-strong);color:var(--ink)}
+    section{break-inside:avoid} body{padding-bottom:1rem}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">System Change Report</div>
+    <h1>{{REPORT_TITLE — one plain-language sentence naming the change}}</h1>
+    <div class="refstrip">
+      <span class="ref">{{REPO_NAME}}</span>
+      <span class="ref">{{BASE_LABEL}} @ {{BASE_SHORT}}</span>
+      <span class="arrow">──▶</span>
+      <span class="ref">{{HEAD_LABEL}} @ {{HEAD_SHORT}}</span>
+    </div>
+    <div class="headline-stats">
+      <span><b>{{N_FILES}}</b> files changed</span>
+      <span><b class="plus">+{{N_ADD}}</b> / <b class="minus">−{{N_DEL}}</b> lines</span>
+      <span><b>{{N_COMMITS}}</b> commits</span>
+      <span>generated {{DATE}}</span>
+    </div>
+  </div>
+</header>
+
+<nav><div class="wrap">
+  <a href="#summary">Summary</a>
+  <a href="#system">System view</a>
+  <!-- {{NAV_LINK per theme: <a href="#theme-1">Theme name</a>}} -->
+  <a href="#numbers">By the numbers</a>
+  <a href="#blast">Blast radius</a>
+  <a href="#appendix">All files</a>
+</div></nav>
+
+<div class="wrap">
+
+  <div class="legend">
+    <span class="chip add"><i></i>Added</span>
+    <span class="chip mod"><i></i>Modified</span>
+    <span class="chip rem"><i></i>Removed</span>
+    <span class="chip gho"><i></i>Unchanged context</span>
+  </div>
+
+  <section id="summary">
+    <div class="kicker">01 · Executive summary</div>
+    <h2>What changed, in five bullets or fewer</h2>
+    <div class="card"><ul class="exec">
+      <li><b>{{Theme headline.}}</b> {{One sentence of what.}} <span class="why">{{One clause of why it matters.}}</span></li>
+      <!-- {{...repeat, ≤5 total, no file paths}} -->
+    </ul></div>
+  </section>
+
+  <section id="system">
+    <div class="kicker">02 · System view</div>
+    <h2>The shape of the system, before and after</h2>
+    <p>{{2–3 sentences orienting the reader: what the system does, and the one-line version of how its shape changed.}}</p>
+    <div class="diagram">
+      <div class="caption">AFTER (deltas colored) — {{the single question this diagram answers}}</div>
+      <pre class="mermaid">
+{{Unified architecture-delta flowchart. ≤15 nodes. Include removed nodes in red-dashed. End with the shared classDefs from references/visual-library.md.}}
+      </pre>
+    </div>
+    <!-- Optional: use <div class="split"> with two .diagram blocks for true before/after when topology transformed heavily -->
+  </section>
+
+  <!-- ==================== THEME BLOCK (duplicate per theme) ==================== -->
+  <section class="theme" id="theme-1">
+    <div class="kicker">03 · Theme</div>
+    <h2>{{Theme name, plain language}}</h2>
+    <div class="theme-body">
+      <p>{{What changed and why — one paragraph. Name modules by role ("the payment layer"), not path, unless the path is the point.}}</p>
+      <div class="diagram">
+        <div class="caption">{{Question this visual answers}}</div>
+        <pre class="mermaid">
+{{Theme diagram — ≤12 nodes, delta classes applied}}
+        </pre>
+      </div>
+      <ul class="exec">
+        <li>{{Up to 5 supporting facts: interfaces changed, capabilities removed, counts of mechanical edits, migration notes.}}</li>
+      </ul>
+    </div>
+  </section>
+  <!-- ==================== /THEME BLOCK ==================== -->
+
+  <section id="numbers">
+    <div class="kicker">0N · By the numbers</div>
+    <h2>Where the churn landed</h2>
+    <div class="card">
+      <div class="bars">
+        <div class="bar-row"><span class="mono">{{area}}</span>
+          <span class="track"><span class="fill-add" style="width:{{pct}}%"></span><span class="fill-del" style="width:{{pct}}%"></span></span>
+          <span class="nums">+{{a}} / −{{d}}</span></div>
+        <!-- {{one row per top area, 6–8 rows, widths scaled to the max row}} -->
+      </div>
+      <div class="composition">
+        <div style="width:{{pct}}%;background:var(--cobalt)" title="Source"></div>
+        <div style="width:{{pct}}%;background:var(--add)" title="Tests"></div>
+        <div style="width:{{pct}}%;background:var(--mod)" title="Docs & config"></div>
+        <div style="width:{{pct}}%;background:var(--ghost)" title="Generated & lockfiles"></div>
+      </div>
+      <div class="comp-key">
+        <span><i style="background:var(--cobalt)"></i>Source {{n}}</span>
+        <span><i style="background:var(--add)"></i>Tests {{n}}</span>
+        <span><i style="background:var(--mod)"></i>Docs &amp; config {{n}}</span>
+        <span><i style="background:var(--ghost)"></i>Generated &amp; lockfiles {{n}}</span>
+      </div>
+      <p style="margin-top:.9rem;font-size:.86rem;color:var(--ink-soft)">{{One sentence disarming the raw counts, e.g. "X of the N files are lockfile/generated churn — the substantive change is ~M files."}}</p>
+    </div>
+  </section>
+
+  <section id="blast">
+    <div class="kicker">0N · Blast radius</div>
+    <h2>What this change can reach</h2>
+    <p>{{Which unchanged parts of the system depend on the changed pieces, and what to watch in review/rollout.}}</p>
+    <div class="diagram">
+      <div class="caption">If {{changed thing}} misbehaves, these are the consumers</div>
+      <pre class="mermaid">
+{{Blast-radius flowchart: changed nodes colored, dependents ghost, edges labeled with the coupling}}
+      </pre>
+    </div>
+    <!-- Optional but high-value: table of changed surfaces with a "Consumers affected" column -->
+  </section>
+
+  <section id="appendix">
+    <div class="kicker">0N · Appendix</div>
+    <h2>Every file, accounted for</h2>
+    <details>
+      <summary>{{N_FILES}} changed files by theme and category</summary>
+      <div class="inner">
+        <table>
+          <thead><tr><th>File</th><th>Status</th><th>+ / −</th><th>Theme</th><th>Category</th></tr></thead>
+          <tbody>
+            <tr class="f-add"><td class="mono">{{path}}</td><td><span class="status add">added</span></td><td class="mono">+{{a}} / −{{d}}</td><td>{{theme}}</td><td>{{category}}</td></tr>
+            <!-- status classes: add / mod / rem / ren ; row accent classes: f-add / f-mod / f-rem -->
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <footer>Generated by the visual-change-report skill · {{DATE}} · diagrams need network for Mermaid; source remains readable offline</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        fontFamily: 'ui-monospace, SF Mono, Consolas, monospace',
+        fontSize: '13px',
+        primaryColor: '#eef1f4', primaryBorderColor: '#8b98a3', primaryTextColor: '#17242e',
+        lineColor: '#51606c', clusterBkg: '#f6f8fa', clusterBorder: '#b9c6d1',
+        actorBkg: '#eef1f4', actorBorder: '#8b98a3', signalColor: '#17242e', signalTextColor: '#17242e'
+      },
+      flowchart: { curve: 'basis', padding: 12 }
+    });
+  }
+</script>
+</body>
+</html>
